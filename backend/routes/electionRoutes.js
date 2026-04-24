@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const requireAdmin = require("../middleware/requireAdmin");
 
 const {
   createElection,
@@ -8,7 +9,7 @@ const {
 } = require("../controllers/electionController");
 
 // create election
-router.post("/", createElection);
+router.post("/", requireAdmin, createElection);
 
 // get all elections
 router.get("/", getAllElections);

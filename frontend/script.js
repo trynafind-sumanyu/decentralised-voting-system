@@ -1,62 +1,77 @@
-// ─── API Configuration ──────────────────────────────────────────────────────
-// For development: http://localhost:5000/api
-// For production: Update to your Render backend URL
-const API_BASE = window.location.hostname === "localhost" 
+const API_BASE = window.location.hostname === "localhost"
   ? "http://localhost:5000/api"
-  : "https://voting-system-backend-9xsy.onrender.com/api"; // Update with your Render URL
+  : "https://voting-system-backend-9xsy.onrender.com/api";
 
-// ─── State ──────────────────────────────────────────────────────────────────
+const ADMIN_TOKEN_KEY = "voting_admin_token";
+
 const state = {
-  currentUser: null,          // voter object from backend
-  selectedCandidateId: null,  // MongoDB _id of selected candidate
+  currentUser: null,
+  selectedCandidateId: null,
   selectedCandidateName: "",
-  currentElectionId: null,    // MongoDB _id of active election
+  currentElectionId: null,
   lastTxHash: "",
-  currentRole: "",            // ✅ FIX 1: always initialise so role is never undefined
+  currentRole: "",
+  adminToken: localStorage.getItem(ADMIN_TOKEN_KEY) || "",
+  adminUser: null,
 };
 
-// ─── DOM References ─────────────────────────────────────────────────────────
-const views             = document.querySelectorAll(".view");
-const alertBox          = document.getElementById("alertBox");
-const registerHeading   = document.getElementById("registerHeading");
-const candidateList     = document.getElementById("candidateList");
-const castVoteButton    = document.getElementById("castVoteButton");
-const goToVoteButton    = document.getElementById("goToVoteButton");
-const modalOverlay      = document.getElementById("modalOverlay");
-const modalTitle        = document.getElementById("modalTitle");
-const modalMessage      = document.getElementById("modalMessage");
-const modalActions      = document.getElementById("modalActions");
-const dashboardName     = document.getElementById("dashboardName");
-const dashboardRole     = document.getElementById("dashboardRole");
-const dashboardWallet   = document.getElementById("dashboardWallet");
+const views = document.querySelectorAll(".view");
+const alertBox = document.getElementById("alertBox");
+const registerHeading = document.getElementById("registerHeading");
+const candidateList = document.getElementById("candidateList");
+const castVoteButton = document.getElementById("castVoteButton");
+const goToVoteButton = document.getElementById("goToVoteButton");
+const modalOverlay = document.getElementById("modalOverlay");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const modalActions = document.getElementById("modalActions");
+const dashboardName = document.getElementById("dashboardName");
+const dashboardRole = document.getElementById("dashboardRole");
+const dashboardWallet = document.getElementById("dashboardWallet");
 const voteStatusHeading = document.getElementById("voteStatusHeading");
-const voteStatusCopy    = document.getElementById("voteStatusCopy");
-const receiptId         = document.getElementById("receiptId");
-const receiptCandidate  = document.getElementById("receiptCandidate");
-const receiptStatus     = document.getElementById("receiptStatus");
-const authShell         = document.getElementById("authShell");
-const appShell          = document.getElementById("appShell");
-const navItems          = document.querySelectorAll(".nav-item");
-const electionSelector  = document.getElementById("electionSelector");
+const voteStatusCopy = document.getElementById("voteStatusCopy");
+const receiptId = document.getElementById("receiptId");
+const receiptCandidate = document.getElementById("receiptCandidate");
+const receiptStatus = document.getElementById("receiptStatus");
+const authShell = document.getElementById("authShell");
+const appShell = document.getElementById("appShell");
+const navItems = document.querySelectorAll(".nav-item");
+const voterOnlyNavItems = document.querySelectorAll(".voter-only");
+const adminOnlyNavItems = document.querySelectorAll(".admin-only");
+const electionSelector = document.getElementById("electionSelector");
 const electionSelectorWrap = document.getElementById("electionSelectorWrap");
+const adminUsernameDisplay = document.getElementById("adminUsernameDisplay");
+const adminLoginForm = document.getElementById("adminLoginForm");
+const adminLogoutButton = document.getElementById("adminLogoutButton");
 
-// ─── API Helpers ─────────────────────────────────────────────────────────────
 async function apiFetch(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+
+  const contentType = res.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await res.json()
+    : { message: await res.text() };
+
+  if (!res.ok) {
+    throw new Error(data.message || "Request failed");
+  }
+
   return data;
 }
 
-// ─── UI Helpers ──────────────────────────────────────────────────────────────
 function showView(viewId) {
-  views.forEach((v) => v.classList.toggle("active", v.id === viewId));
-  navItems.forEach((item) =>
-    item.classList.toggle("active", item.dataset.viewTarget === viewId)
-  );
+  views.forEach((view) => view.classList.toggle("active", view.id === viewId));
+  navItems.forEach((item) => {
+    item.classList.toggle("active", item.dataset.viewTarget === viewId);
+  });
   clearAlert();
 }
 
@@ -73,20 +88,18 @@ function clearAlert() {
 function resetAuthForms() {
   document.getElementById("registerForm").reset();
   document.getElementById("signinForm").reset();
+  adminLoginForm.reset();
 }
 
-function showAuthenticatedApp(defaultView = "dashboardView") {
-  document.body.classList.remove("auth-mode");
-  authShell.classList.add("hidden");
-  appShell.classList.remove("hidden");
-  showView(defaultView);
+function setLoading(button, loading) {
+  button.disabled = loading;
+  button.dataset.originalText = button.dataset.originalText || button.textContent;
+  button.textContent = loading ? "Please wait..." : button.dataset.originalText;
 }
 
-function showAuthPortal(defaultView = "homeView") {
-  document.body.classList.add("auth-mode");
-  appShell.classList.add("hidden");
-  authShell.classList.remove("hidden");
-  showView(defaultView);
+function closeModal() {
+  modalOverlay.classList.add("hidden");
+  modalOverlay.setAttribute("aria-hidden", "true");
 }
 
 function openModal(title, message, actions) {
@@ -97,14 +110,15 @@ function openModal(title, message, actions) {
   actions.forEach((action) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className =
-      action.variant === "secondary"
-        ? "secondary-button wide-button"
-        : "primary-button wide-button";
+    button.className = action.variant === "secondary"
+      ? "secondary-button wide-button"
+      : "primary-button wide-button";
     button.textContent = action.label;
     button.addEventListener("click", () => {
       closeModal();
-      if (action.onClick) action.onClick();
+      if (action.onClick) {
+        action.onClick();
+      }
     });
     modalActions.appendChild(button);
   });
@@ -113,18 +127,79 @@ function openModal(title, message, actions) {
   modalOverlay.setAttribute("aria-hidden", "false");
 }
 
-function closeModal() {
-  modalOverlay.classList.add("hidden");
-  modalOverlay.setAttribute("aria-hidden", "true");
+function showAuthenticatedApp(defaultView = "dashboardView") {
+  document.body.classList.remove("auth-mode");
+  authShell.classList.add("hidden");
+  appShell.classList.remove("hidden");
+  updateAdminUI();
+  showView(defaultView);
 }
 
-function setLoading(button, loading) {
-  button.disabled = loading;
-  button.dataset.originalText = button.dataset.originalText || button.textContent;
-  button.textContent = loading ? "Please wait…" : button.dataset.originalText;
+function showAuthPortal(defaultView = "homeView") {
+  document.body.classList.add("auth-mode");
+  appShell.classList.add("hidden");
+  authShell.classList.remove("hidden");
+  showView(defaultView);
 }
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
+function persistAdminSession(token, admin) {
+  state.adminToken = token;
+  state.adminUser = admin;
+  localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  updateAdminUI();
+}
+
+function clearAdminSession() {
+  state.adminToken = "";
+  state.adminUser = null;
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  updateAdminUI();
+}
+
+function isAdminAuthenticated() {
+  return Boolean(state.adminToken && state.adminUser);
+}
+
+function updateAdminUI() {
+  const adminVisible = isAdminAuthenticated();
+  adminOnlyNavItems.forEach((element) => {
+    element.style.display = adminVisible ? "" : "none";
+  });
+
+  voterOnlyNavItems.forEach((element) => {
+    element.style.display = state.currentUser ? "" : "none";
+  });
+
+  adminUsernameDisplay.textContent = state.adminUser?.username || "-";
+}
+
+async function verifyStoredAdminSession() {
+  if (!state.adminToken) {
+    updateAdminUI();
+    return false;
+  }
+
+  try {
+    const data = await apiFetch("/admin/session", {
+      headers: {
+        Authorization: `Bearer ${state.adminToken}`,
+      },
+    });
+    state.adminUser = data.admin;
+    updateAdminUI();
+    return true;
+  } catch (error) {
+    clearAdminSession();
+    return false;
+  }
+}
+
+function getAdminHeaders() {
+  return state.adminToken
+    ? { Authorization: `Bearer ${state.adminToken}` }
+    : {};
+}
+
 function renderDashboard() {
   const user = state.currentUser;
 
@@ -145,13 +220,12 @@ function renderDashboard() {
   }
 }
 
-// ─── Receipt ─────────────────────────────────────────────────────────────────
 function renderReceipt() {
   if (state.lastTxHash) {
     receiptId.textContent = state.lastTxHash;
     receiptCandidate.textContent = state.selectedCandidateName || "--";
     receiptStatus.textContent = "Recorded on blockchain";
-  } else if (state.currentUser && state.currentUser.lastVotedTxHash) {
+  } else if (state.currentUser?.lastVotedTxHash) {
     receiptId.textContent = state.currentUser.lastVotedTxHash;
     receiptCandidate.textContent = "--";
     receiptStatus.textContent = "Recorded on blockchain";
@@ -162,75 +236,20 @@ function renderReceipt() {
   }
 }
 
-// ─── Ballot ───────────────────────────────────────────────────────────────────
 async function loadElections() {
   const data = await apiFetch("/elections");
   return data.data || [];
 }
 
-async function loadBallot() {
-  // ✅ FIX 2: Better loading state with spinner
-  candidateList.innerHTML = `
-    <div style="padding:2rem;text-align:center;color:var(--muted)">
-      <p style="font-size:1rem;margin-bottom:0.5rem">⏳ Loading ballot…</p>
-      <p style="font-size:0.8rem">This may take a moment if the server is waking up.</p>
-    </div>`;
-
-  let elections = [];
-  try {
-    elections = await loadElections();
-  } catch (err) {
-    // ✅ FIX 3: Retry button instead of silent failure
-    candidateList.innerHTML = `
-      <div style="padding:2rem;text-align:center">
-        <p style="color:var(--danger);margin-bottom:1rem">⚠️ Could not load elections. The server may be starting up.</p>
-        <button onclick="loadBallot()" class="primary-button" style="padding:10px 24px;border-radius:12px">
-          🔄 Retry
-        </button>
-      </div>`;
-    return;
-  }
-
-  if (!elections.length) {
-    candidateList.innerHTML = `
-      <div style="padding:2rem;text-align:center">
-        <p style="color:var(--muted);margin-bottom:1rem">No elections found. Please check back later.</p>
-        <button onclick="loadBallot()" class="secondary-button" style="padding:10px 24px;border-radius:12px">
-          🔄 Refresh
-        </button>
-      </div>`;
-    return;
-  }
-
-  // Show election selector if there are multiple
-  if (elections.length > 1) {
-    electionSelectorWrap.style.display = "block";
-    electionSelector.innerHTML = elections
-      .map((e) => `<option value="${e._id}">${e.title}</option>`)
-      .join("");
-
-    // use previously selected or default to first
-    if (!state.currentElectionId) {
-      state.currentElectionId = elections[0]._id;
-    }
-    electionSelector.value = state.currentElectionId;
-  } else {
-    electionSelectorWrap.style.display = "none";
-    state.currentElectionId = elections[0]._id;
-  }
-
-  await renderCandidates(state.currentElectionId);
-}
-
 async function renderCandidates(electionId) {
-  candidateList.innerHTML = "<p style='padding:1rem;color:var(--color-text-secondary)'>Loading candidates…</p>";
+  candidateList.innerHTML = "<p style='padding:1rem;color:var(--muted)'>Loading candidates...</p>";
 
   try {
-    const data = await apiFetch(`/candidates?electionId=${electionId}`);
+    const data = await apiFetch(`/candidates?electionId=${encodeURIComponent(electionId)}`);
     const candidates = data.candidates || [];
 
     if (!candidates.length) {
-      candidateList.innerHTML = "<p style='padding:1rem;color:var(--color-text-secondary)'>No candidates registered for this election yet.</p>";
+      candidateList.innerHTML = "<p style='padding:1rem;color:var(--muted)'>No candidates registered for this election yet.</p>";
       return;
     }
 
@@ -243,7 +262,7 @@ async function renderCandidates(electionId) {
         .split(" ")
         .filter(Boolean)
         .slice(0, 2)
-        .map((p) => p[0].toUpperCase())
+        .map((part) => part[0].toUpperCase())
         .join("");
 
       const card = document.createElement("button");
@@ -275,59 +294,105 @@ async function renderCandidates(electionId) {
       card.addEventListener("click", () => {
         state.selectedCandidateId = candidate._id;
         state.selectedCandidateName = `${candidate.name} (${candidate.party || "Independent"})`;
-        renderCandidatesHighlight(candidates);
+        document.querySelectorAll(".candidate-card").forEach((candidateCard) => {
+          candidateCard.classList.toggle(
+            "selected",
+            candidateCard.dataset.candidateId === state.selectedCandidateId
+          );
+        });
       });
 
       candidateList.appendChild(card);
     });
-
-  } catch (err) {
+  } catch (error) {
     candidateList.innerHTML = `
       <div style="padding:2rem;text-align:center">
-        <p style="color:var(--danger);margin-bottom:1rem">⚠️ Could not load candidates: ${err.message}</p>
-        <button onclick="renderCandidates('${electionId}')" class="primary-button" style="padding:10px 24px;border-radius:12px">
-          🔄 Retry
+        <p style="color:var(--danger);margin-bottom:1rem">Could not load candidates: ${error.message}</p>
+        <button type="button" id="retryCandidatesButton" class="primary-button" style="padding:10px 24px;border-radius:12px">
+          Retry
         </button>
-      </div>`;
+      </div>
+    `;
+    document.getElementById("retryCandidatesButton").addEventListener("click", () => {
+      renderCandidates(electionId);
+    });
   }
 }
 
-// Re-render just the selected highlight without re-fetching
-function renderCandidatesHighlight(candidates) {
-  document.querySelectorAll(".candidate-card").forEach((card) => {
-    card.classList.toggle("selected", card.dataset.candidateId === state.selectedCandidateId);
-  });
+async function loadBallot() {
+  candidateList.innerHTML = `
+    <div style="padding:2rem;text-align:center;color:var(--muted)">
+      <p style="font-size:1rem;margin-bottom:0.5rem">Loading ballot...</p>
+      <p style="font-size:0.8rem">This may take a moment if the server is waking up.</p>
+    </div>
+  `;
+
+  let elections = [];
+  try {
+    elections = await loadElections();
+  } catch (error) {
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--danger);margin-bottom:1rem">Could not load elections. The server may be starting up.</p>
+        <button type="button" id="retryBallotButton" class="primary-button" style="padding:10px 24px;border-radius:12px">
+          Retry
+        </button>
+      </div>
+    `;
+    document.getElementById("retryBallotButton").addEventListener("click", loadBallot);
+    return;
+  }
+
+  if (!elections.length) {
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--muted);margin-bottom:1rem">No elections found. Please check back later.</p>
+      </div>
+    `;
+    return;
+  }
+
+  if (elections.length > 1) {
+    electionSelectorWrap.style.display = "block";
+    electionSelector.innerHTML = elections
+      .map((election) => `<option value="${election._id}">${election.title}</option>`)
+      .join("");
+
+    if (!state.currentElectionId || !elections.some((election) => election._id === state.currentElectionId)) {
+      state.currentElectionId = elections[0]._id;
+    }
+    electionSelector.value = state.currentElectionId;
+  } else {
+    electionSelectorWrap.style.display = "none";
+    state.currentElectionId = elections[0]._id;
+  }
+
+  await renderCandidates(state.currentElectionId);
 }
 
-// ─── Role Selection ──────────────────────────────────────────────────────────
 async function setRole(role) {
   state.currentRole = role;
-  registerHeading.textContent =
-    role === "candidate" ? "Register Candidate" : "Register Voter";
-
+  registerHeading.textContent = role === "candidate" ? "Register Candidate" : "Register Voter";
   document.getElementById("registerForm").reset();
 
-  // Toggle field visibility based on role
   document.getElementById("aadharField").style.display = role === "voter" ? "" : "none";
   document.getElementById("dobField").style.display = role === "voter" ? "" : "none";
   document.getElementById("emailField").style.display = role === "voter" ? "" : "none";
-  document.getElementById("partyField").style.display   = role === "candidate" ? "" : "none";
+  document.getElementById("partyField").style.display = role === "candidate" ? "" : "none";
   document.getElementById("electionField").style.display = role === "candidate" ? "" : "none";
 
-  // Set required attributes
   document.getElementById("registerAadhar").required = role === "voter";
   document.getElementById("registerDOB").required = role === "voter";
-  document.getElementById("registerEmail").required  = role === "voter";
-  document.getElementById("registerParty").required  = role === "candidate";
+  document.getElementById("registerEmail").required = role === "voter";
+  document.getElementById("registerParty").required = role === "candidate";
   document.getElementById("registerElection").required = role === "candidate";
 
-  // Pre-load elections for candidate dropdown
   if (role === "candidate") {
     const elections = await loadElections();
     const select = document.getElementById("registerElection");
     if (elections.length) {
       select.innerHTML = elections
-        .map((e) => `<option value="${e._id}">${e.title}</option>`)
+        .map((election) => `<option value="${election._id}">${election.title}</option>`)
         .join("");
     } else {
       select.innerHTML = "<option value=''>No elections available</option>";
@@ -337,7 +402,33 @@ async function setRole(role) {
   showView("registerFormView");
 }
 
-// ─── Registration ─────────────────────────────────────────────────────────────
+async function loadAdminElections() {
+  const list = document.getElementById("adminElectionList");
+  list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading...</p>";
+
+  try {
+    const data = await apiFetch("/elections");
+    const elections = data.data || [];
+
+    if (!elections.length) {
+      list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No elections yet. Create one above.</p>";
+      return;
+    }
+
+    list.innerHTML = elections.map((election) => `
+      <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+        <strong style="font-size:1rem">${election.title}</strong>
+        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--muted)">
+          Status: <b>${election.status}</b> | ${new Date(election.startDate).toLocaleDateString()} to ${new Date(election.endDate).toLocaleDateString()}
+        </p>
+        <p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted)">${election.description || "No description provided."}</p>
+      </div>
+    `).join("");
+  } catch (error) {
+    list.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
+  }
+}
+
 document.getElementById("registerForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitBtn = event.target.querySelector("[type=submit]");
@@ -352,23 +443,20 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
       const dateOfBirth = document.getElementById("registerDOB").value;
       const email = document.getElementById("registerEmail").value.trim();
 
-      // Validate Aadhar is 12 digits
       if (!/^\d{12}$/.test(aadharNumber)) {
         throw new Error("Aadhar number must be exactly 12 digits");
       }
 
-      // Validate DOB is provided
       if (!dateOfBirth) {
         throw new Error("Date of birth is required");
       }
 
-      // Calculate age and validate
       const dob = new Date(dateOfBirth);
       const today = new Date();
       let age = today.getFullYear() - dob.getFullYear();
       const monthDiff = today.getMonth() - dob.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-        age--;
+        age -= 1;
       }
 
       if (age < 18) {
@@ -383,9 +471,7 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
         method: "POST",
         body: JSON.stringify({ name, email, aadharNumber, dateOfBirth }),
       });
-
     } else {
-      // candidate
       const party = document.getElementById("registerParty").value.trim();
       const electionId = document.getElementById("registerElection").value;
 
@@ -395,37 +481,34 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
       });
     }
 
-    const registeredRole = state.currentRole; // ✅ FIX 2: capture role before reset
+    const registeredRole = state.currentRole;
     event.target.reset();
     openModal(
       "Registration Complete",
-      `${registeredRole === "voter" ? "Voter" : "Candidate"} registered successfully. You can now sign in with your ${registeredRole === "voter" ? "Aadhar number" : "credentials"}.`,
+      `${registeredRole === "voter" ? "Voter" : "Candidate"} registered successfully.`,
       [
         {
-          // ✅ FIX 2: allow registering another person without navigating away
           label: registeredRole === "voter" ? "Register Another Voter" : "Register Another Candidate",
           onClick: () => {
             state.currentRole = registeredRole;
             document.getElementById("registerForm").reset();
             showView("registerFormView");
-          }
+          },
         },
         {
           label: "Return to Welcome Page",
           variant: "secondary",
-          onClick: () => showAuthPortal("homeView")
-        }
+          onClick: () => showAuthPortal("homeView"),
+        },
       ]
     );
-
-  } catch (err) {
-    showAlert(err.message, "error");
+  } catch (error) {
+    showAlert(error.message, "error");
   } finally {
     setLoading(submitBtn, false);
   }
 });
 
-// ─── Sign In ──────────────────────────────────────────────────────────────────
 document.getElementById("signinForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitBtn = event.target.querySelector("[type=submit]");
@@ -435,7 +518,6 @@ document.getElementById("signinForm").addEventListener("submit", async (event) =
   const aadharNumber = document.getElementById("signinAadhar").value.trim();
 
   try {
-    // Validate Aadhar is 12 digits
     if (!/^\d{12}$/.test(aadharNumber)) {
       throw new Error("Aadhar number must be exactly 12 digits");
     }
@@ -443,18 +525,19 @@ document.getElementById("signinForm").addEventListener("submit", async (event) =
     const data = await apiFetch(`/voters/lookup?aadharNumber=${encodeURIComponent(aadharNumber)}`);
     state.currentUser = data.voter;
     state.selectedCandidateId = null;
+    state.selectedCandidateName = "";
     state.lastTxHash = "";
     renderDashboard();
     showAuthenticatedApp("dashboardView");
 
-    // u2705 FIX 1: Preload ballot in background after sign-in to wake up Render
-    if (!state.currentUser.hasVoted) { loadBallot().catch(() => {}); }
-
-  } catch (err) {
+    if (!state.currentUser.hasVoted) {
+      loadBallot().catch(() => {});
+    }
+  } catch (error) {
     showAlert(
-      err.message === "Voter not found with this Aadhar number"
+      error.message === "Voter not found with this Aadhar number"
         ? "No voter found with this Aadhar number. Please register first."
-        : err.message,
+        : error.message,
       "error"
     );
   } finally {
@@ -462,59 +545,96 @@ document.getElementById("signinForm").addEventListener("submit", async (event) =
   }
 });
 
-// ─── Navigation ───────────────────────────────────────────────────────────────
+adminLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitBtn = event.target.querySelector("[type=submit]");
+  setLoading(submitBtn, true);
+  clearAlert();
+
+  try {
+    const username = document.getElementById("adminUsername").value.trim();
+    const password = document.getElementById("adminPassword").value;
+    const data = await apiFetch("/admin/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+
+    persistAdminSession(data.token, data.admin);
+    await loadAdminElections();
+    showAuthenticatedApp("adminView");
+  } catch (error) {
+    showAlert(error.message, "error");
+  } finally {
+    setLoading(submitBtn, false);
+  }
+});
+
 document.querySelectorAll("[data-view-target]").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const targetView = button.dataset.viewTarget;
 
-    if (["homeView", "registerChoiceView", "registerFormView", "signinView"].includes(targetView)) {
-      resetAuthForms();
-      state.selectedCandidateId = null;
+    if (["homeView", "registerChoiceView", "registerFormView", "signinView", "adminLoginView"].includes(targetView)) {
       closeModal();
-      // ✅ FIX 3: clear role when returning to choice screen so a fresh selection is always required
-      if (targetView === "registerChoiceView" || targetView === "homeView") {
+      if (targetView === "homeView" || targetView === "registerChoiceView") {
         state.currentRole = "";
       }
     }
 
     if (targetView === "dashboardView" && state.currentUser) {
       renderDashboard();
+      showAuthenticatedApp(targetView);
+      return;
     }
 
     if (targetView === "ballotView" && state.currentUser && !state.currentUser.hasVoted) {
       state.selectedCandidateId = null;
-      loadBallot();
+      await loadBallot();
+      showAuthenticatedApp(targetView);
+      return;
     }
 
     if (targetView === "receiptView") {
       renderReceipt();
+      showAuthenticatedApp(targetView);
+      return;
+    }
+
+    if (targetView === "adminView") {
+      const validSession = await verifyStoredAdminSession();
+      if (!validSession) {
+        showAuthPortal("adminLoginView");
+        showAlert("Please sign in as admin to continue.", "error");
+        return;
+      }
+      await loadAdminElections();
+      showAuthenticatedApp("adminView");
+      return;
     }
 
     showView(targetView);
   });
 });
 
-// Role button clicks
 document.querySelectorAll(".role-button").forEach((button) => {
   button.addEventListener("click", () => setRole(button.dataset.role));
 });
 
-// Election selector change
 electionSelector.addEventListener("change", () => {
   state.currentElectionId = electionSelector.value;
   state.selectedCandidateId = null;
   renderCandidates(state.currentElectionId);
 });
 
-// Go to ballot button
-goToVoteButton.addEventListener("click", () => {
-  if (!state.currentUser || state.currentUser.hasVoted) return;
+goToVoteButton.addEventListener("click", async () => {
+  if (!state.currentUser || state.currentUser.hasVoted) {
+    return;
+  }
+
   state.selectedCandidateId = null;
-  loadBallot();
+  await loadBallot();
   showAuthenticatedApp("ballotView");
 });
 
-// ─── Cast Vote ────────────────────────────────────────────────────────────────
 castVoteButton.addEventListener("click", async () => {
   if (!state.selectedCandidateId) {
     openModal("Selection Required", "Please select one candidate before submitting the ballot.", [
@@ -535,7 +655,6 @@ castVoteButton.addEventListener("click", async () => {
       }),
     });
 
-    // update local state
     state.currentUser.hasVoted = true;
     state.currentUser.lastVotedTxHash = data.txHash;
     state.lastTxHash = data.txHash;
@@ -550,9 +669,8 @@ castVoteButton.addEventListener("click", async () => {
       { label: "View Receipt", onClick: () => showAuthenticatedApp("receiptView") },
       { label: "Back to Dashboard", variant: "secondary", onClick: () => showAuthenticatedApp("dashboardView") },
     ]);
-
-  } catch (err) {
-    openModal("Vote Failed", err.message, [
+  } catch (error) {
+    openModal("Vote Failed", error.message, [
       { label: "Close", variant: "secondary", onClick: () => {} },
     ]);
   } finally {
@@ -560,72 +678,31 @@ castVoteButton.addEventListener("click", async () => {
   }
 });
 
-// ─── Sign Out ─────────────────────────────────────────────────────────────────
-document.getElementById("signOutButton").addEventListener("click", () => {
-  state.currentUser = null;
-  state.selectedCandidateId = null;
-  state.selectedCandidateName = "";
-  state.lastTxHash = "";
-  state.currentElectionId = null;
-  state.currentRole = "";
-  resetAuthForms();
-  closeModal();
-  showAuthPortal("homeView");
-});
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-showAuthPortal("homeView");
-
-// ─── Admin Panel ──────────────────────────────────────────────────────────────
-const ADMIN_AADHAR = "000000000000"; // 🔐 Change this to your admin Aadhar number
-
-function isAdmin() {
-  return state.currentUser && state.currentUser.aadharNumber === ADMIN_AADHAR;
-}
-
-function showAdminNav() {
-  document.querySelectorAll(".admin-only").forEach(el => {
-    el.style.display = isAdmin() ? "" : "none";
-  });
-}
-
-async function loadAdminElections() {
-  const list = document.getElementById("adminElectionList");
-  list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading…</p>";
-  try {
-    const data = await apiFetch("/elections");
-    const elections = data.data || [];
-    if (!elections.length) {
-      list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No elections yet. Create one above.</p>";
-      return;
-    }
-    list.innerHTML = elections.map(e => `
-      <div style="padding:12px 0;border-bottom:1px solid var(--line)">
-        <strong style="font-size:1rem">${e.title}</strong>
-        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--muted)">
-          Status: <b>${e.status}</b> &nbsp;|&nbsp;
-          ${new Date(e.startDate).toLocaleDateString()} → ${new Date(e.endDate).toLocaleDateString()}
-        </p>
-      </div>
-    `).join("");
-  } catch (err) {
-    list.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${err.message}</p>`;
-  }
-}
-
 document.getElementById("createElectionBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("createElectionBtn");
   const title = document.getElementById("electionTitle").value.trim();
   const description = document.getElementById("electionDesc").value.trim();
   const startDate = document.getElementById("electionStart").value;
   const endDate = document.getElementById("electionEnd").value;
-  const btn = document.getElementById("createElectionBtn");
 
-  if (!title || !startDate || !endDate) {
-    alert("Please fill in title, start date, and end date.");
+  if (!isAdminAuthenticated()) {
+    openModal("Admin Sign-In Required", "Please sign in again before creating an election.", [
+      { label: "Open Admin Login", onClick: () => showAuthPortal("adminLoginView") },
+    ]);
     return;
   }
+
+  if (!title || !startDate || !endDate) {
+    openModal("Missing Details", "Please fill in the title, start date, and end date.", [
+      { label: "Back", variant: "secondary", onClick: () => showAuthenticatedApp("adminView") },
+    ]);
+    return;
+  }
+
   if (new Date(endDate) <= new Date(startDate)) {
-    alert("End date must be after start date.");
+    openModal("Invalid Dates", "End date must be after start date.", [
+      { label: "Back", variant: "secondary", onClick: () => showAuthenticatedApp("adminView") },
+    ]);
     return;
   }
 
@@ -633,27 +710,55 @@ document.getElementById("createElectionBtn").addEventListener("click", async () 
   try {
     await apiFetch("/elections", {
       method: "POST",
-      body: JSON.stringify({ title, description, startDate, endDate, status: "active" }),
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ title, description, startDate, endDate }),
     });
-    // Clear form
-    ["electionTitle","electionDesc","electionStart","electionEnd"].forEach(id => {
+
+    ["electionTitle", "electionDesc", "electionStart", "electionEnd"].forEach((id) => {
       document.getElementById(id).value = "";
     });
+
     await loadAdminElections();
-    openModal("Election Created ✅", `"${title}" is now live. Candidates can register for it.`, [
-      { label: "OK", onClick: () => {} }
+    openModal("Election Created", `"${title}" is now available for candidate registration.`, [
+      { label: "Stay Here", onClick: () => showAuthenticatedApp("adminView") },
     ]);
-  } catch (err) {
-    alert("Failed to create election: " + err.message);
+  } catch (error) {
+    if (error.message.includes("Admin session")) {
+      clearAdminSession();
+    }
+    openModal("Creation Failed", error.message, [
+      { label: "Back", variant: "secondary", onClick: () => showAuthenticatedApp("adminView") },
+    ]);
   } finally {
     setLoading(btn, false);
   }
 });
 
-// Hook admin view into nav
-const origShowView = showView;
-document.querySelectorAll("[data-view-target='adminView']").forEach(btn => {
-  btn.addEventListener("click", () => {
-    loadAdminElections();
-  });
+adminLogoutButton.addEventListener("click", () => {
+  clearAdminSession();
+  if (!state.currentUser) {
+    showAuthPortal("homeView");
+    return;
+  }
+  showAuthenticatedApp("dashboardView");
 });
+
+document.getElementById("signOutButton").addEventListener("click", () => {
+  state.currentUser = null;
+  state.selectedCandidateId = null;
+  state.selectedCandidateName = "";
+  state.lastTxHash = "";
+  state.currentElectionId = null;
+  state.currentRole = "";
+  closeModal();
+  resetAuthForms();
+  if (isAdminAuthenticated()) {
+    showAuthenticatedApp("adminView");
+    return;
+  }
+  showAuthPortal("homeView");
+});
+
+closeModal();
+showAuthPortal("homeView");
+verifyStoredAdminSession();

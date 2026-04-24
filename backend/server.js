@@ -8,6 +8,7 @@ const electionRoutes = require("./routes/electionRoutes");
 const candidateRoutes = require("./routes/candidateRoutes");
 const voteRoutes = require("./routes/voteRoutes");
 const voterRoutes = require("./routes/voterRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api/elections", electionRoutes);
 app.use("/api/candidates", candidateRoutes);
 app.use("/api/voters", voterRoutes);
 app.use("/api/votes", voteRoutes);
+app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 5000;
 

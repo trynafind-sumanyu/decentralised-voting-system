@@ -35,7 +35,8 @@ body.auth-mode {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -204,6 +205,21 @@ input:focus {
   outline: 2px solid rgba(22, 18, 75, 0.09);
 }
 
+select {
+  width: 100%;
+  border: none;
+  background: #f5f3ee;
+  padding: 8px 12px;
+  border-radius: 0;
+  color: var(--navy);
+  box-shadow: inset 0 0 0 1px rgba(24, 21, 60, 0.04);
+  font-size: 0.9rem;
+}
+
+select:focus {
+  outline: 2px solid rgba(22, 18, 75, 0.09);
+}
+
 .primary-button,
 .secondary-button,
 .text-button,
@@ -264,6 +280,11 @@ input:focus {
 .back-button::before {
   content: "<";
   font-size: 0.9rem;
+}
+
+.admin-entry-button {
+  justify-self: center;
+  margin-top: 6px;
 }
 
 .support-line {
@@ -578,6 +599,25 @@ input:focus {
   padding: 28px;
 }
 
+.admin-toolbar {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: var(--panel-soft);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-toolbar strong {
+  font-size: 1rem;
+}
+
 .receipt-row {
   display: flex;
   justify-content: space-between;
@@ -689,6 +729,11 @@ input:focus {
 
   .receipt-row {
     flex-direction: column;
+  }
+
+  .admin-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
