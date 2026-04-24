@@ -3,7 +3,7 @@
 // For production: Update to your Render backend URL
 const API_BASE = window.location.hostname === "localhost" 
   ? "http://localhost:5000/api"
-  : "https://voting-system-backend-9xsy.onrender.com/apihttps://voting-system-backend-9xsy.onrender.com/"; // Update with your Render URL
+  : "https://voting-system-backend-9xsy.onrender.com/api"; // Update with your Render URL
 
 // ─── State ──────────────────────────────────────────────────────────────────
 const state = {
