@@ -575,3 +575,85 @@ document.getElementById("signOutButton").addEventListener("click", () => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 showAuthPortal("homeView");
+
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+const ADMIN_AADHAR = "000000000000"; // 🔐 Change this to your admin Aadhar number
+
+function isAdmin() {
+  return state.currentUser && state.currentUser.aadharNumber === ADMIN_AADHAR;
+}
+
+function showAdminNav() {
+  document.querySelectorAll(".admin-only").forEach(el => {
+    el.style.display = isAdmin() ? "" : "none";
+  });
+}
+
+async function loadAdminElections() {
+  const list = document.getElementById("adminElectionList");
+  list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading…</p>";
+  try {
+    const data = await apiFetch("/elections");
+    const elections = data.data || [];
+    if (!elections.length) {
+      list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No elections yet. Create one above.</p>";
+      return;
+    }
+    list.innerHTML = elections.map(e => `
+      <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+        <strong style="font-size:1rem">${e.title}</strong>
+        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--muted)">
+          Status: <b>${e.status}</b> &nbsp;|&nbsp;
+          ${new Date(e.startDate).toLocaleDateString()} → ${new Date(e.endDate).toLocaleDateString()}
+        </p>
+      </div>
+    `).join("");
+  } catch (err) {
+    list.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${err.message}</p>`;
+  }
+}
+
+document.getElementById("createElectionBtn").addEventListener("click", async () => {
+  const title = document.getElementById("electionTitle").value.trim();
+  const description = document.getElementById("electionDesc").value.trim();
+  const startDate = document.getElementById("electionStart").value;
+  const endDate = document.getElementById("electionEnd").value;
+  const btn = document.getElementById("createElectionBtn");
+
+  if (!title || !startDate || !endDate) {
+    alert("Please fill in title, start date, and end date.");
+    return;
+  }
+  if (new Date(endDate) <= new Date(startDate)) {
+    alert("End date must be after start date.");
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    await apiFetch("/elections", {
+      method: "POST",
+      body: JSON.stringify({ title, description, startDate, endDate, status: "active" }),
+    });
+    // Clear form
+    ["electionTitle","electionDesc","electionStart","electionEnd"].forEach(id => {
+      document.getElementById(id).value = "";
+    });
+    await loadAdminElections();
+    openModal("Election Created ✅", `"${title}" is now live. Candidates can register for it.`, [
+      { label: "OK", onClick: () => {} }
+    ]);
+  } catch (err) {
+    alert("Failed to create election: " + err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+// Hook admin view into nav
+const origShowView = showView;
+document.querySelectorAll("[data-view-target='adminView']").forEach(btn => {
+  btn.addEventListener("click", () => {
+    loadAdminElections();
+  });
+});

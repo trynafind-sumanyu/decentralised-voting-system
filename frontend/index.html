@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -130,6 +129,10 @@
           <span class="nav-icon">RC</span>
           <span>Voting Receipt</span>
         </button>
+        <button class="nav-item admin-only" data-view-target="adminView" style="display:none">
+          <span class="nav-icon">AD</span>
+          <span>Admin</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -207,6 +210,43 @@
             <span>Status</span>
             <strong id="receiptStatus">Pending</strong>
           </div>
+        </div>
+      </section>
+
+      <section id="adminView" class="view app-view">
+        <div class="headline-block">
+          <p class="workspace-tag">Admin Panel</p>
+          <h1 class="workspace-title">Manage Elections</h1>
+        </div>
+
+        <div class="receipt-card" style="max-width:560px;margin-bottom:2rem">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;margin:0 0 1rem">Create New Election</h3>
+          <div class="form-stack" id="electionForm" style="gap:12px">
+            <label class="field">
+              <span>Election Title</span>
+              <input type="text" id="electionTitle" placeholder="e.g. General Election 2025" required>
+            </label>
+            <label class="field">
+              <span>Description</span>
+              <input type="text" id="electionDesc" placeholder="Brief description">
+            </label>
+            <label class="field">
+              <span>Start Date</span>
+              <input type="date" id="electionStart" required>
+            </label>
+            <label class="field">
+              <span>End Date</span>
+              <input type="date" id="electionEnd" required>
+            </label>
+            <button id="createElectionBtn" class="primary-button wide-button" style="margin-top:4px">
+              Create Election
+            </button>
+          </div>
+        </div>
+
+        <div class="receipt-card" style="max-width:560px">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;margin:0 0 1rem">Existing Elections</h3>
+          <div id="adminElectionList"><p style="color:var(--muted);font-size:0.9rem">Loading…</p></div>
         </div>
       </section>
     </main>
