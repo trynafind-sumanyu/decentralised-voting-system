@@ -10,8 +10,8 @@ const {
 } = require("../controllers/candidateController");
 
 router.post("/", registerCandidate);
-router.get("/", getCandidatesByElection);
 router.get("/admin", requireAdmin, getAdminCandidatesByElection);
+router.get("/", getCandidatesByElection);
 router.patch("/:id/approval", requireAdmin, updateCandidateApproval);
 
 module.exports = router;

@@ -481,10 +481,14 @@ function renderAdminElectionSelect(elections) {
     return;
   }
 
+  if (!state.adminSelectedElectionId || !elections.some((election) => election._id === state.adminSelectedElectionId)) {
+    state.adminSelectedElectionId = elections[0]._id;
+  }
+
   adminElectionSelect.innerHTML = elections
     .map((election) => `<option value="${election._id}">${election.title}</option>`)
     .join("");
-  adminElectionSelect.value = state.adminSelectedElectionId || elections[0]._id;
+  adminElectionSelect.value = state.adminSelectedElectionId;
 }
 
 function createCandidateActionButton(label, className, onClick) {
@@ -530,7 +534,7 @@ async function loadAdminCandidates() {
     const reviewCandidates = candidates.filter((candidate) => !candidate.isNOTA);
 
     if (!reviewCandidates.length) {
-      adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No registered candidates are awaiting review for this election.</p>";
+      adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No registered candidates were found for this election yet.</p>";
       return;
     }
 
@@ -596,10 +600,15 @@ async function loadAdminCandidates() {
 }
 
 async function loadAdminElections() {
-  const elections = await ensureElectionsLoaded();
-  renderAdminElectionSummary(elections);
-  renderAdminElectionSelect(elections);
-  await loadAdminCandidates();
+  try {
+    const elections = await ensureElectionsLoaded();
+    renderAdminElectionSummary(elections);
+    renderAdminElectionSelect(elections);
+    await loadAdminCandidates();
+  } catch (error) {
+    document.getElementById("adminElectionList").innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
+    adminCandidateList.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
+  }
 }
 
 document.getElementById("registerForm").addEventListener("submit", async (event) => {
