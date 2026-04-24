@@ -150,10 +150,10 @@ exports.updateCandidateApproval = async (req, res) => {
         const { blockchainId } = await registerCandidateOnBlockchain(candidate.name);
         candidate.blockchainId = blockchainId;
       } catch (blockchainError) {
-        return res.status(500).json({
-          message: "Blockchain approval sync failed",
-          error: blockchainError.message,
-        });
+        // ✅ FIX: Log blockchain error but don't block approval
+        // Candidate is approved in DB even if blockchain sync fails
+        console.warn("Blockchain sync failed (non-blocking):", blockchainError.message);
+        candidate.blockchainId = null;
       }
     }
 
