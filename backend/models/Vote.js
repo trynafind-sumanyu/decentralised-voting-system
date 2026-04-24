@@ -19,13 +19,12 @@ const voteSchema = new mongoose.Schema({
     required: true
   },
 
-  // 🔥 IMPORTANT: blockchain traceability
+  // Important for blockchain traceability.
   txHash: {
     type: String,
     required: true
   },
 
-  // optional but useful for debugging
   status: {
     type: String,
     enum: ["pending", "confirmed", "failed"],
@@ -37,5 +36,7 @@ const voteSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+voteSchema.index({ voterId: 1, electionId: 1 }, { unique: true });
 
 module.exports = mongoose.model("Vote", voteSchema);

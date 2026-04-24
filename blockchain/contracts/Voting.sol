@@ -11,11 +11,10 @@ contract Voting {
     }
 
     mapping(uint => Candidate) public candidates;
-    mapping(string => bool) public voterIdVoted;  // tracks by voterId string, not wallet
+    mapping(string => bool) public voterIdVoted;
 
     uint public candidatesCount;
 
-    // EVENTS
     event CandidateAdded(uint id, string name);
     event Voted(string voterId, uint candidateId);
 
@@ -24,12 +23,13 @@ contract Voting {
     }
 
     function addCandidate(string memory _name) public {
+        require(msg.sender == admin, "Only admin can add candidates");
+
         candidatesCount++;
         candidates[candidatesCount] = Candidate(candidatesCount, _name, 0);
         emit CandidateAdded(candidatesCount, _name);
     }
 
-    // vote now takes voterId so each voter is tracked individually
     function vote(string memory _voterId, uint _candidateId) public {
         require(!voterIdVoted[_voterId], "Voter has already voted");
         require(_candidateId > 0 && _candidateId <= candidatesCount, "Invalid candidate");
