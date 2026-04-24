@@ -653,6 +653,108 @@ select:focus {
   gap: 4px;
 }
 
+.admin-candidate-card {
+  margin-top: 24px;
+  max-width: 1180px;
+}
+
+.admin-candidate-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-election-filter {
+  min-width: 260px;
+}
+
+.admin-candidate-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-candidate-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-candidate-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.admin-candidate-meta h4 {
+  margin: 0 0 6px;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.admin-candidate-meta p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-candidate-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+}
+
+.admin-status-badge.pending {
+  background: rgba(184, 158, 60, 0.14);
+  color: #8d6e12;
+}
+
+.admin-status-badge.approved {
+  background: rgba(33, 99, 72, 0.12);
+  color: var(--success);
+}
+
+.admin-status-badge.rejected {
+  background: rgba(160, 59, 59, 0.12);
+  color: var(--danger);
+}
+
+.admin-action-button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-action-button.approve {
+  background: rgba(33, 99, 72, 0.12);
+  color: var(--success);
+}
+
+.admin-action-button.reject {
+  background: rgba(160, 59, 59, 0.12);
+  color: var(--danger);
+}
+
 .receipt-row {
   display: flex;
   justify-content: space-between;
@@ -740,6 +842,11 @@ select:focus {
     gap: 18px;
   }
 
+  .admin-candidate-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .floating-action {
     position: static;
     margin-top: 26px;
@@ -778,6 +885,19 @@ select:focus {
 
   .admin-card {
     padding: 22px 18px;
+  }
+
+  .admin-election-filter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-candidate-item {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-candidate-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -1001,6 +1121,10 @@ select:focus {
   }
 
   .admin-toolbar .secondary-button {
+    width: 100%;
+  }
+
+  .admin-action-button {
     width: 100%;
   }
 

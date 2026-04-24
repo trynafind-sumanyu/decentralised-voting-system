@@ -46,6 +46,9 @@ exports.createElection = async (req, res) => {
         electionId: election._id,
         blockchainId,
         isNOTA: true,
+        approvalStatus: "approved",
+        approvedAt: new Date(),
+        approvedBy: "system",
       });
 
       election.candidates.push(noneOfAboveCandidate._id);
@@ -91,7 +94,13 @@ exports.getAllElections = async (req, res) => {
 exports.getElectionResults = async (req, res) => {
   try {
     const electionId = req.params.id;
-    const candidates = await Candidate.find({ electionId });
+    const candidates = await Candidate.find({
+      electionId,
+      $or: [
+        { isNOTA: true },
+        { approvalStatus: "approved" },
+      ],
+    });
 
     if (!candidates.length) {
       return res.status(404).json({

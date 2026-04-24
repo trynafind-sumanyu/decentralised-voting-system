@@ -7,7 +7,6 @@ const candidateSchema = new mongoose.Schema({
     trim: true,
   },
 
-  // ✅ FIX: party field was missing from schema but used in controller
   party: {
     type: String,
     trim: true,
@@ -20,16 +19,30 @@ const candidateSchema = new mongoose.Schema({
     required: true,
   },
 
-  // maps MongoDB candidate → blockchain candidate
   blockchainId: {
     type: Number,
     default: null,
   },
 
-  // Flag to identify "None of the Above" candidate
   isNOTA: {
     type: Boolean,
     default: false,
+  },
+
+  approvalStatus: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
+
+  approvedAt: {
+    type: Date,
+    default: null,
+  },
+
+  approvedBy: {
+    type: String,
+    default: null,
   },
 
   createdAt: {
@@ -37,5 +50,7 @@ const candidateSchema = new mongoose.Schema({
     default: Date.now,
   }
 });
+
+candidateSchema.index({ electionId: 1, approvalStatus: 1, createdAt: 1 });
 
 module.exports = mongoose.model("Candidate", candidateSchema);

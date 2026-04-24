@@ -45,22 +45,11 @@ exports.registerCandidate = async (req, res) => {
       });
     }
 
-    let blockchainId;
-
-    try {
-      ({ blockchainId } = await registerCandidateOnBlockchain(trimmedName));
-    } catch (blockchainError) {
-      return res.status(500).json({
-        message: "Blockchain registration failed",
-        error: blockchainError.message,
-      });
-    }
-
     const newCandidate = new Candidate({
       name: trimmedName,
       party: trimmedParty,
       electionId,
-      blockchainId,
+      approvalStatus: "pending",
     });
 
     await newCandidate.save();
@@ -70,9 +59,9 @@ exports.registerCandidate = async (req, res) => {
     await election.save();
 
     res.status(201).json({
-      message: "Candidate registered successfully",
+      message: "Candidate registered successfully and is awaiting admin approval",
       candidate: newCandidate,
-      blockchainSynced: true,
+      blockchainSynced: false,
     });
   } catch (error) {
     res.status(500).json({
@@ -90,7 +79,13 @@ exports.getCandidatesByElection = async (req, res) => {
       return res.status(400).json({ message: "electionId query param is required" });
     }
 
-    const candidates = await Candidate.find({ electionId }).sort({ isNOTA: 1, createdAt: 1 });
+    const candidates = await Candidate.find({
+      electionId,
+      $or: [
+        { isNOTA: true },
+        { approvalStatus: "approved" },
+      ],
+    }).sort({ isNOTA: 1, createdAt: 1 });
 
     res.status(200).json({
       message: "Candidates fetched successfully",
@@ -99,6 +94,81 @@ exports.getCandidatesByElection = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error fetching candidates",
+      error: error.message,
+    });
+  }
+};
+
+exports.getAdminCandidatesByElection = async (req, res) => {
+  try {
+    const { electionId } = req.query;
+
+    if (!electionId) {
+      return res.status(400).json({ message: "electionId query param is required" });
+    }
+
+    const candidates = await Candidate.find({ electionId }).sort({ isNOTA: 1, createdAt: 1 });
+
+    res.status(200).json({
+      message: "Admin candidates fetched successfully",
+      candidates,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching admin candidates",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateCandidateApproval = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvalStatus } = req.body;
+
+    if (!["approved", "rejected"].includes(approvalStatus)) {
+      return res.status(400).json({
+        message: "approvalStatus must be either approved or rejected",
+      });
+    }
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({
+        message: "Candidate not found",
+      });
+    }
+
+    if (candidate.isNOTA) {
+      return res.status(400).json({
+        message: "NOTA cannot be modified",
+      });
+    }
+
+    if (approvalStatus === "approved" && !candidate.blockchainId) {
+      try {
+        const { blockchainId } = await registerCandidateOnBlockchain(candidate.name);
+        candidate.blockchainId = blockchainId;
+      } catch (blockchainError) {
+        return res.status(500).json({
+          message: "Blockchain approval sync failed",
+          error: blockchainError.message,
+        });
+      }
+    }
+
+    candidate.approvalStatus = approvalStatus;
+    candidate.approvedAt = approvalStatus === "approved" ? new Date() : null;
+    candidate.approvedBy = approvalStatus === "approved" ? req.adminUser?.username || "admin" : null;
+    await candidate.save();
+
+    res.status(200).json({
+      message: `Candidate ${approvalStatus} successfully`,
+      candidate,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating candidate approval",
       error: error.message,
     });
   }

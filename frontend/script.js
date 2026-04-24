@@ -14,6 +14,7 @@ const state = {
   currentRole: "",
   adminToken: localStorage.getItem(ADMIN_TOKEN_KEY) || "",
   adminUser: null,
+  adminSelectedElectionId: "",
 };
 
 const views = document.querySelectorAll(".view");
@@ -44,6 +45,8 @@ const electionSelectorWrap = document.getElementById("electionSelectorWrap");
 const adminUsernameDisplay = document.getElementById("adminUsernameDisplay");
 const adminLoginForm = document.getElementById("adminLoginForm");
 const adminLogoutButton = document.getElementById("adminLogoutButton");
+const adminElectionSelect = document.getElementById("adminElectionSelect");
+const adminCandidateList = document.getElementById("adminCandidateList");
 
 async function apiFetch(path, options = {}) {
   const headers = {
@@ -80,6 +83,12 @@ function getVoteRecordForElection(electionId = state.currentElectionId) {
 
 function hasVotedInElection(electionId = state.currentElectionId) {
   return Boolean(getVoteRecordForElection(electionId));
+}
+
+function getAdminHeaders() {
+  return state.adminToken
+    ? { Authorization: `Bearer ${state.adminToken}` }
+    : {};
 }
 
 function showView(viewId) {
@@ -196,9 +205,7 @@ async function verifyStoredAdminSession() {
 
   try {
     const data = await apiFetch("/admin/session", {
-      headers: {
-        Authorization: `Bearer ${state.adminToken}`,
-      },
+      headers: getAdminHeaders(),
     });
     state.adminUser = data.admin;
     updateAdminUI();
@@ -209,18 +216,16 @@ async function verifyStoredAdminSession() {
   }
 }
 
-function getAdminHeaders() {
-  return state.adminToken
-    ? { Authorization: `Bearer ${state.adminToken}` }
-    : {};
-}
-
 async function ensureElectionsLoaded() {
   const data = await apiFetch("/elections");
   state.elections = data.data || [];
 
   if (state.elections.length && (!state.currentElectionId || !state.elections.some((election) => election._id === state.currentElectionId))) {
     state.currentElectionId = state.elections[0]._id;
+  }
+
+  if (state.elections.length && (!state.adminSelectedElectionId || !state.elections.some((election) => election._id === state.adminSelectedElectionId))) {
+    state.adminSelectedElectionId = state.elections[0]._id;
   }
 
   return state.elections;
@@ -289,7 +294,7 @@ async function renderCandidates(electionId) {
     const candidates = data.candidates || [];
 
     if (!candidates.length) {
-      candidateList.innerHTML = "<p style='padding:1rem;color:var(--muted)'>No candidates registered for this election yet.</p>";
+      candidateList.innerHTML = "<p style='padding:1rem;color:var(--muted)'>No approved candidates are available for this election yet.</p>";
       return;
     }
 
@@ -450,31 +455,151 @@ async function setRole(role) {
   showView("registerFormView");
 }
 
-async function loadAdminElections() {
+function renderAdminElectionSummary(elections) {
   const list = document.getElementById("adminElectionList");
-  list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading...</p>";
+
+  if (!elections.length) {
+    list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No elections yet. Create one above.</p>";
+    return;
+  }
+
+  list.innerHTML = elections.map((election) => `
+    <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <strong style="font-size:1rem">${election.title}</strong>
+      <p style="margin:4px 0 0;font-size:0.82rem;color:var(--muted)">
+        Status: <b>${election.status}</b> | ${new Date(election.startDate).toLocaleDateString()} to ${new Date(election.endDate).toLocaleDateString()}
+      </p>
+      <p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted)">${election.description || "No description provided."}</p>
+    </div>
+  `).join("");
+}
+
+function renderAdminElectionSelect(elections) {
+  if (!elections.length) {
+    adminElectionSelect.innerHTML = "<option value=''>No elections available</option>";
+    state.adminSelectedElectionId = "";
+    return;
+  }
+
+  adminElectionSelect.innerHTML = elections
+    .map((election) => `<option value="${election._id}">${election.title}</option>`)
+    .join("");
+  adminElectionSelect.value = state.adminSelectedElectionId || elections[0]._id;
+}
+
+function createCandidateActionButton(label, className, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `admin-action-button ${className}`;
+  button.textContent = label;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+async function updateCandidateApproval(candidateId, approvalStatus) {
+  await apiFetch(`/candidates/${candidateId}/approval`, {
+    method: "PATCH",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ approvalStatus }),
+  });
+
+  await Promise.all([
+    loadAdminCandidates(),
+    ensureElectionsLoaded(),
+  ]);
+
+  if (state.currentElectionId === state.adminSelectedElectionId) {
+    await loadBallot();
+  }
+}
+
+async function loadAdminCandidates() {
+  if (!state.adminSelectedElectionId) {
+    adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Select an election to review candidates.</p>";
+    return;
+  }
+
+  adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading candidates...</p>";
 
   try {
-    const data = await apiFetch("/elections");
-    const elections = data.data || [];
+    const data = await apiFetch(`/candidates/admin?electionId=${encodeURIComponent(state.adminSelectedElectionId)}`, {
+      headers: getAdminHeaders(),
+    });
 
-    if (!elections.length) {
-      list.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No elections yet. Create one above.</p>";
+    const candidates = data.candidates || [];
+    const reviewCandidates = candidates.filter((candidate) => !candidate.isNOTA);
+
+    if (!reviewCandidates.length) {
+      adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No registered candidates are awaiting review for this election.</p>";
       return;
     }
 
-    list.innerHTML = elections.map((election) => `
-      <div style="padding:12px 0;border-bottom:1px solid var(--line)">
-        <strong style="font-size:1rem">${election.title}</strong>
-        <p style="margin:4px 0 0;font-size:0.82rem;color:var(--muted)">
-          Status: <b>${election.status}</b> | ${new Date(election.startDate).toLocaleDateString()} to ${new Date(election.endDate).toLocaleDateString()}
-        </p>
-        <p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted)">${election.description || "No description provided."}</p>
-      </div>
-    `).join("");
+    adminCandidateList.innerHTML = "";
+
+    reviewCandidates.forEach((candidate) => {
+      const item = document.createElement("article");
+      item.className = "admin-candidate-item";
+
+      const meta = document.createElement("div");
+      meta.className = "admin-candidate-meta";
+      meta.innerHTML = `
+        <h4>${candidate.name}</h4>
+        <p>${candidate.party || "Independent"}</p>
+        <p>Current status: ${candidate.approvalStatus}</p>
+      `;
+
+      const actions = document.createElement("div");
+      actions.className = "admin-candidate-actions";
+
+      const badge = document.createElement("span");
+      badge.className = `admin-status-badge ${candidate.approvalStatus}`;
+      badge.textContent = candidate.approvalStatus;
+      actions.appendChild(badge);
+
+      if (candidate.approvalStatus !== "approved") {
+        actions.appendChild(createCandidateActionButton("Approve", "approve", async () => {
+          try {
+            await updateCandidateApproval(candidate._id, "approved");
+            openModal("Candidate Approved", `${candidate.name} is now eligible to appear on the ballot.`, [
+              { label: "OK", onClick: () => showAuthenticatedApp("adminView") },
+            ]);
+          } catch (error) {
+            openModal("Approval Failed", error.message, [
+              { label: "Close", variant: "secondary", onClick: () => {} },
+            ]);
+          }
+        }));
+      }
+
+      if (candidate.approvalStatus !== "rejected") {
+        actions.appendChild(createCandidateActionButton("Reject", "reject", async () => {
+          try {
+            await updateCandidateApproval(candidate._id, "rejected");
+            openModal("Candidate Rejected", `${candidate.name} will not appear on the ballot.`, [
+              { label: "OK", onClick: () => showAuthenticatedApp("adminView") },
+            ]);
+          } catch (error) {
+            openModal("Rejection Failed", error.message, [
+              { label: "Close", variant: "secondary", onClick: () => {} },
+            ]);
+          }
+        }));
+      }
+
+      item.appendChild(meta);
+      item.appendChild(actions);
+      adminCandidateList.appendChild(item);
+    });
   } catch (error) {
-    list.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
+    adminCandidateList.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
   }
+}
+
+async function loadAdminElections() {
+  const elections = await ensureElectionsLoaded();
+  renderAdminElectionSummary(elections);
+  renderAdminElectionSelect(elections);
+  await loadAdminCandidates();
 }
 
 document.getElementById("registerForm").addEventListener("submit", async (event) => {
@@ -533,7 +658,9 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
     event.target.reset();
     openModal(
       "Registration Complete",
-      `${registeredRole === "voter" ? "Voter" : "Candidate"} registered successfully.`,
+      registeredRole === "candidate"
+        ? "Candidate registered successfully and sent for admin review."
+        : "Voter registered successfully.",
       [
         {
           label: registeredRole === "voter" ? "Register Another Voter" : "Register Another Candidate",
@@ -674,6 +801,11 @@ electionSelector.addEventListener("change", async () => {
   await loadBallot();
 });
 
+adminElectionSelect.addEventListener("change", async () => {
+  state.adminSelectedElectionId = adminElectionSelect.value;
+  await loadAdminCandidates();
+});
+
 goToVoteButton.addEventListener("click", async () => {
   if (!state.currentUser || hasVotedInElection() || getCurrentElection()?.status !== "active") {
     return;
@@ -774,7 +906,6 @@ document.getElementById("createElectionBtn").addEventListener("click", async () 
     });
 
     await loadAdminElections();
-    await ensureElectionsLoaded();
     renderDashboard();
     openModal("Election Created", `"${title}" is now available for candidate registration.`, [
       { label: "Stay Here", onClick: () => showAuthenticatedApp("adminView") },
@@ -808,6 +939,7 @@ document.getElementById("signOutButton").addEventListener("click", () => {
   state.lastTxHash = "";
   state.currentElectionId = null;
   state.currentRole = "";
+  state.adminSelectedElectionId = "";
   closeModal();
   resetAuthForms();
   if (isAdminAuthenticated()) {
