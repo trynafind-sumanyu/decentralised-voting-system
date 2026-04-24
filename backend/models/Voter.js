@@ -12,7 +12,7 @@ const voterSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    match: /^\d{12}$/, // Must be exactly 12 digits
+    match: /^\d{12}$/,
   },
 
   email: {
@@ -33,16 +33,23 @@ const voterSchema = new mongoose.Schema({
     required: true,
   },
 
-  hasVoted: {
-    type: Boolean,
-    default: false,
-  },
-
-  // 🔥 optional but useful for blockchain traceability
-  lastVotedTxHash: {
-    type: String,
-    default: null,
-  },
+  votedElections: [
+    {
+      electionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Election",
+        required: true,
+      },
+      txHash: {
+        type: String,
+        required: true,
+      },
+      votedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }
+  ],
 
   createdAt: {
     type: Date,
@@ -50,8 +57,8 @@ const voterSchema = new mongoose.Schema({
   }
 });
 
-// 🔥 indexes for fast lookup (important for voting systems)
 voterSchema.index({ aadharNumber: 1 });
 voterSchema.index({ email: 1 });
+voterSchema.index({ _id: 1, "votedElections.electionId": 1 });
 
 module.exports = mongoose.model("Voter", voterSchema);

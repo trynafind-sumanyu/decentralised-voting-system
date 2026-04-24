@@ -6,6 +6,7 @@ const ADMIN_TOKEN_KEY = "voting_admin_token";
 
 const state = {
   currentUser: null,
+  elections: [],
   selectedCandidateId: null,
   selectedCandidateName: "",
   currentElectionId: null,
@@ -65,6 +66,20 @@ async function apiFetch(path, options = {}) {
   }
 
   return data;
+}
+
+function getCurrentElection() {
+  return state.elections.find((election) => election._id === state.currentElectionId) || null;
+}
+
+function getVoteRecordForElection(electionId = state.currentElectionId) {
+  return state.currentUser?.votedElections?.find(
+    (record) => String(record.electionId) === String(electionId)
+  ) || null;
+}
+
+function hasVotedInElection(electionId = state.currentElectionId) {
+  return Boolean(getVoteRecordForElection(electionId));
 }
 
 function showView(viewId) {
@@ -200,33 +215,59 @@ function getAdminHeaders() {
     : {};
 }
 
+async function ensureElectionsLoaded() {
+  const data = await apiFetch("/elections");
+  state.elections = data.data || [];
+
+  if (state.elections.length && (!state.currentElectionId || !state.elections.some((election) => election._id === state.currentElectionId))) {
+    state.currentElectionId = state.elections[0]._id;
+  }
+
+  return state.elections;
+}
+
 function renderDashboard() {
   const user = state.currentUser;
+  const currentElection = getCurrentElection();
+  const currentVote = getVoteRecordForElection();
 
   dashboardName.textContent = user.name;
   dashboardRole.textContent = `Voter | Aadhar: ${user.aadharNumber}`;
   dashboardWallet.textContent = `Email: ${user.email}`;
 
-  if (user.hasVoted) {
+  if (!currentElection) {
+    voteStatusHeading.textContent = "No election selected";
+    voteStatusCopy.textContent = "No election is available right now.";
+    goToVoteButton.disabled = true;
+    goToVoteButton.textContent = "No Active Election";
+    return;
+  }
+
+  if (currentVote) {
     voteStatusHeading.textContent = "Vote submitted";
-    voteStatusCopy.textContent = "Your ballot has been recorded on the blockchain.";
+    voteStatusCopy.textContent = `Your ballot for ${currentElection.title} has been recorded on the blockchain.`;
     goToVoteButton.disabled = true;
     goToVoteButton.textContent = "Submission Complete";
-  } else {
-    voteStatusHeading.textContent = "Pending";
-    voteStatusCopy.textContent = "You are eligible to cast your vote.";
-    goToVoteButton.disabled = false;
-    goToVoteButton.textContent = "Go to Official Ballot";
+    return;
   }
+
+  voteStatusHeading.textContent = currentElection.status === "active" ? "Pending" : currentElection.status;
+  voteStatusCopy.textContent = currentElection.status === "active"
+    ? `You are eligible to vote in ${currentElection.title}.`
+    : `Voting is not currently open for ${currentElection.title}.`;
+  goToVoteButton.disabled = currentElection.status !== "active";
+  goToVoteButton.textContent = currentElection.status === "active" ? "Go to Official Ballot" : "Voting Unavailable";
 }
 
 function renderReceipt() {
+  const currentVote = getVoteRecordForElection();
+
   if (state.lastTxHash) {
     receiptId.textContent = state.lastTxHash;
     receiptCandidate.textContent = state.selectedCandidateName || "--";
     receiptStatus.textContent = "Recorded on blockchain";
-  } else if (state.currentUser?.lastVotedTxHash) {
-    receiptId.textContent = state.currentUser.lastVotedTxHash;
+  } else if (currentVote?.txHash) {
+    receiptId.textContent = currentVote.txHash;
     receiptCandidate.textContent = "--";
     receiptStatus.textContent = "Recorded on blockchain";
   } else {
@@ -237,8 +278,7 @@ function renderReceipt() {
 }
 
 async function loadElections() {
-  const data = await apiFetch("/elections");
-  return data.data || [];
+  return ensureElectionsLoaded();
 }
 
 async function renderCandidates(electionId) {
@@ -329,7 +369,7 @@ async function loadBallot() {
 
   let elections = [];
   try {
-    elections = await loadElections();
+    elections = await ensureElectionsLoaded();
   } catch (error) {
     candidateList.innerHTML = `
       <div style="padding:2rem;text-align:center">
@@ -349,6 +389,7 @@ async function loadBallot() {
         <p style="color:var(--muted);margin-bottom:1rem">No elections found. Please check back later.</p>
       </div>
     `;
+    renderDashboard();
     return;
   }
 
@@ -357,14 +398,21 @@ async function loadBallot() {
     electionSelector.innerHTML = elections
       .map((election) => `<option value="${election._id}">${election.title}</option>`)
       .join("");
-
-    if (!state.currentElectionId || !elections.some((election) => election._id === state.currentElectionId)) {
-      state.currentElectionId = elections[0]._id;
-    }
     electionSelector.value = state.currentElectionId;
   } else {
     electionSelectorWrap.style.display = "none";
     state.currentElectionId = elections[0]._id;
+  }
+
+  renderDashboard();
+
+  if (hasVotedInElection()) {
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--muted);margin-bottom:1rem">You have already voted in this election.</p>
+      </div>
+    `;
+    return;
   }
 
   await renderCandidates(state.currentElectionId);
@@ -527,12 +575,10 @@ document.getElementById("signinForm").addEventListener("submit", async (event) =
     state.selectedCandidateId = null;
     state.selectedCandidateName = "";
     state.lastTxHash = "";
+    await ensureElectionsLoaded();
     renderDashboard();
     showAuthenticatedApp("dashboardView");
-
-    if (!state.currentUser.hasVoted) {
-      loadBallot().catch(() => {});
-    }
+    loadBallot().catch(() => {});
   } catch (error) {
     showAlert(
       error.message === "Voter not found with this Aadhar number"
@@ -586,7 +632,7 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
       return;
     }
 
-    if (targetView === "ballotView" && state.currentUser && !state.currentUser.hasVoted) {
+    if (targetView === "ballotView" && state.currentUser) {
       state.selectedCandidateId = null;
       await loadBallot();
       showAuthenticatedApp(targetView);
@@ -619,14 +665,17 @@ document.querySelectorAll(".role-button").forEach((button) => {
   button.addEventListener("click", () => setRole(button.dataset.role));
 });
 
-electionSelector.addEventListener("change", () => {
+electionSelector.addEventListener("change", async () => {
   state.currentElectionId = electionSelector.value;
   state.selectedCandidateId = null;
-  renderCandidates(state.currentElectionId);
+  state.selectedCandidateName = "";
+  state.lastTxHash = "";
+  renderDashboard();
+  await loadBallot();
 });
 
 goToVoteButton.addEventListener("click", async () => {
-  if (!state.currentUser || state.currentUser.hasVoted) {
+  if (!state.currentUser || hasVotedInElection() || getCurrentElection()?.status !== "active") {
     return;
   }
 
@@ -655,8 +704,14 @@ castVoteButton.addEventListener("click", async () => {
       }),
     });
 
-    state.currentUser.hasVoted = true;
-    state.currentUser.lastVotedTxHash = data.txHash;
+    state.currentUser.votedElections = [
+      ...(state.currentUser.votedElections || []),
+      {
+        electionId: state.currentElectionId,
+        txHash: data.txHash,
+        votedAt: new Date().toISOString(),
+      },
+    ];
     state.lastTxHash = data.txHash;
 
     receiptId.textContent = data.txHash;
@@ -665,7 +720,7 @@ castVoteButton.addEventListener("click", async () => {
 
     renderDashboard();
 
-    openModal("Vote Recorded Successfully", "Your vote has been submitted to the blockchain.", [
+    openModal("Vote Recorded Successfully", "Your vote has been submitted to the blockchain for this election.", [
       { label: "View Receipt", onClick: () => showAuthenticatedApp("receiptView") },
       { label: "Back to Dashboard", variant: "secondary", onClick: () => showAuthenticatedApp("dashboardView") },
     ]);
@@ -719,6 +774,8 @@ document.getElementById("createElectionBtn").addEventListener("click", async () 
     });
 
     await loadAdminElections();
+    await ensureElectionsLoaded();
+    renderDashboard();
     openModal("Election Created", `"${title}" is now available for candidate registration.`, [
       { label: "Stay Here", onClick: () => showAuthenticatedApp("adminView") },
     ]);
@@ -745,6 +802,7 @@ adminLogoutButton.addEventListener("click", () => {
 
 document.getElementById("signOutButton").addEventListener("click", () => {
   state.currentUser = null;
+  state.elections = [];
   state.selectedCandidateId = null;
   state.selectedCandidateName = "";
   state.lastTxHash = "";

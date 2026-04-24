@@ -4,6 +4,7 @@ const Candidate = require("../models/Candidate");
 const Election = require("../models/Election");
 const getContract = require("../config/blockchain");
 const { getElectionStatus, isElectionOpen } = require("../utils/electionStatus");
+const { buildScopedVoterKey } = require("../utils/voteScope");
 
 exports.castVote = async (req, res) => {
   try {
@@ -18,10 +19,6 @@ exports.castVote = async (req, res) => {
     const voter = await Voter.findById(voterId);
     if (!voter) {
       return res.status(404).json({ message: "Voter not found" });
-    }
-
-    if (voter.hasVoted) {
-      return res.status(400).json({ message: "Voter has already cast their vote" });
     }
 
     const election = await Election.findById(electionId);
@@ -56,10 +53,11 @@ exports.castVote = async (req, res) => {
     }
 
     const contract = getContract();
+    const scopedVoterKey = buildScopedVoterKey(voterId.toString(), electionId.toString());
 
     let tx;
     try {
-      tx = await contract.vote(voterId.toString(), chainCandidateId);
+      tx = await contract.vote(scopedVoterKey, chainCandidateId);
       await tx.wait();
     } catch (blockchainError) {
       return res.status(500).json({
@@ -76,8 +74,11 @@ exports.castVote = async (req, res) => {
     });
     await vote.save();
 
-    voter.hasVoted = true;
-    voter.lastVotedTxHash = tx.hash;
+    voter.votedElections.push({
+      electionId,
+      txHash: tx.hash,
+      votedAt: new Date(),
+    });
     await voter.save();
 
     election.status = currentStatus;

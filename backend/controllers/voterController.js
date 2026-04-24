@@ -4,29 +4,25 @@ exports.registerVoter = async (req, res) => {
   try {
     let { name, email, aadharNumber, dateOfBirth } = req.body;
 
-    // validation
     if (!name || !email || !aadharNumber || !dateOfBirth) {
       return res.status(400).json({
         message: "Name, email, aadharNumber, and date of birth are required"
       });
     }
 
-    // validate Aadhar format (12 digits)
     if (!/^\d{12}$/.test(aadharNumber)) {
       return res.status(400).json({
         message: "Aadhar number must be exactly 12 digits"
       });
     }
 
-    // Parse and validate DOB
     const dob = new Date(dateOfBirth);
-    if (isNaN(dob.getTime())) {
+    if (Number.isNaN(dob.getTime())) {
       return res.status(400).json({
         message: "Invalid date of birth format"
       });
     }
 
-    // Calculate age
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
@@ -34,25 +30,21 @@ exports.registerVoter = async (req, res) => {
       age--;
     }
 
-    // Check if voter is at least 18 years old
     if (age < 18) {
       return res.status(403).json({
         message: "Voter must be at least 18 years old to register"
       });
     }
 
-    // Validate DOB is not in the future
     if (dob > today) {
       return res.status(400).json({
         message: "Date of birth cannot be in the future"
       });
     }
 
-    // normalize inputs (IMPORTANT FIX)
     email = email.toLowerCase().trim();
     aadharNumber = aadharNumber.trim();
 
-    // 1. check duplicate email (case-safe)
     const existingEmail = await Voter.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({
@@ -60,7 +52,6 @@ exports.registerVoter = async (req, res) => {
       });
     }
 
-    // 2. check duplicate aadhar
     const existingAadhar = await Voter.findOne({ aadharNumber });
     if (existingAadhar) {
       return res.status(400).json({
@@ -68,14 +59,13 @@ exports.registerVoter = async (req, res) => {
       });
     }
 
-    // 3. create voter
     const voter = new Voter({
       name: name.trim(),
       email,
       aadharNumber,
       dateOfBirth: dob,
       age,
-      hasVoted: false
+      votedElections: []
     });
 
     await voter.save();
@@ -84,7 +74,6 @@ exports.registerVoter = async (req, res) => {
       message: "Voter registered successfully",
       voter
     });
-
   } catch (error) {
     console.error("Voter registration error:", error);
     res.status(500).json({
@@ -104,15 +93,14 @@ exports.getVoterByAadhar = async (req, res) => {
       });
     }
 
-    // validate Aadhar format
     if (!/^\d{12}$/.test(aadharNumber)) {
       return res.status(400).json({
         message: "Aadhar number must be exactly 12 digits"
       });
     }
 
-    const voter = await Voter.findOne({ 
-      aadharNumber: aadharNumber.trim() 
+    const voter = await Voter.findOne({
+      aadharNumber: aadharNumber.trim()
     });
 
     if (!voter) {
@@ -125,7 +113,6 @@ exports.getVoterByAadhar = async (req, res) => {
       message: "Voter found",
       voter
     });
-
   } catch (error) {
     res.status(500).json({
       message: "Error fetching voter",
