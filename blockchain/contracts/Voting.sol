@@ -11,45 +11,40 @@ contract Voting {
     }
 
     mapping(uint => Candidate) public candidates;
-    mapping(address => bool) public hasVoted;
+    mapping(string => bool) public voterIdVoted;  // tracks by voterId string, not wallet
 
     uint public candidatesCount;
 
     // EVENTS
     event CandidateAdded(uint id, string name);
-    event Voted(address voter, uint candidateId);
+    event Voted(string voterId, uint candidateId);
 
     constructor() {
         admin = msg.sender;
     }
 
     function addCandidate(string memory _name) public {
-        // require(msg.sender == admin, "Only admin allowed"); // Removed for testing
-
         candidatesCount++;
         candidates[candidatesCount] = Candidate(candidatesCount, _name, 0);
-
         emit CandidateAdded(candidatesCount, _name);
     }
 
-    function vote(uint _candidateId) public {
-        require(!hasVoted[msg.sender], "Already voted");
+    // vote now takes voterId so each voter is tracked individually
+    function vote(string memory _voterId, uint _candidateId) public {
+        require(!voterIdVoted[_voterId], "Voter has already voted");
         require(_candidateId > 0 && _candidateId <= candidatesCount, "Invalid candidate");
 
-        hasVoted[msg.sender] = true;
+        voterIdVoted[_voterId] = true;
         candidates[_candidateId].voteCount++;
 
-        emit Voted(msg.sender, _candidateId);
+        emit Voted(_voterId, _candidateId);
     }
 
-    // Get all candidates
     function getAllCandidates() public view returns (Candidate[] memory) {
         Candidate[] memory result = new Candidate[](candidatesCount);
-
         for (uint i = 1; i <= candidatesCount; i++) {
             result[i - 1] = candidates[i];
         }
-
         return result;
     }
 }

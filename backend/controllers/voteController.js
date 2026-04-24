@@ -42,7 +42,7 @@ exports.castVote = async (req, res) => {
     // 5. blockchain vote
     let tx;
     try {
-      tx = await contract.vote(chainCandidateId);
+      tx = await contract.vote(voterId.toString(), chainCandidateId);
       await tx.wait();
     } catch (blockchainError) {
       return res.status(500).json({
