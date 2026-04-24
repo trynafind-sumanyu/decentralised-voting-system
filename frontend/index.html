@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sovereign Ledger</title>
+
+  <link rel="icon" type="image/png" href="1000591470.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="1000591470.png.png">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="authShell" class="auth-shell">
+    <div class="brand-strip">SOVEREIGN LEDGER</div>
+
+    <section class="auth-stage">
+      <div class="auth-panel-shadow"></div>
+      <div class="auth-card">
+        <div class="auth-card-line"></div>
+        <div class="auth-card-body">
+          <div class="auth-icon" aria-hidden="true">
+            <img src="1000591470.png" alt="Sovereign Ledger Logo" class="logo-image">
+          </div>
+          <div id="alertBox" class="alert hidden" role="status" aria-live="polite"></div>
+
+          <section id="homeView" class="view active">
+            <h1 class="auth-title">Welcome to the Voting Portal</h1>
+            <p class="auth-copy">Select a service to continue securely.</p>
+            <div class="auth-actions stacked">
+              <button class="primary-button wide-button" data-view-target="signinView">Sign In</button>
+              <button class="secondary-button wide-button" data-view-target="registerChoiceView">Register</button>
+            </div>
+          </section>
+
+          <section id="registerChoiceView" class="view">
+            <button class="text-button back-button" data-view-target="homeView">Back</button>
+            <h1 class="auth-title">Registration Services</h1>
+            <p class="auth-copy">Choose the appropriate registration category.</p>
+            <div class="auth-actions stacked">
+              <button class="secondary-button wide-button role-button" data-role="voter">Register Voter</button>
+              <button class="secondary-button wide-button role-button" data-role="candidate">Register Candidate</button>
+            </div>
+          </section>
+
+          <section id="registerFormView" class="view">
+            <button class="text-button back-button" data-view-target="registerChoiceView">Back</button>
+            <h1 id="registerHeading" class="auth-title">Register Voter</h1>
+            <p class="auth-copy">Enter your details exactly as per official records.</p>
+            <form id="registerForm" class="form-stack register-form">
+              <label class="field">
+                <span>Full Name</span>
+                <input type="text" id="registerName" placeholder="Enter full name" required>
+              </label>
+
+              <!-- Voter-only fields -->
+              <label class="field" id="aadharField">
+                <span>Aadhar Number (12 digits)</span>
+                <input type="text" id="registerAadhar" placeholder="Enter 12-digit Aadhar number" pattern="\d{12}" maxlength="12">
+              </label>
+              <label class="field" id="dobField">
+                <span>Date of Birth</span>
+                <input type="date" id="registerDOB" placeholder="Select your date of birth">
+              </label>
+              <label class="field" id="emailField">
+                <span>Email Address</span>
+                <input type="email" id="registerEmail" placeholder="Enter email address">
+              </label>
+
+              <!-- Candidate-only fields -->
+              <label class="field" id="partyField" style="display:none">
+                <span>Political Party</span>
+                <input type="text" id="registerParty" placeholder="Enter party name">
+              </label>
+              <label class="field" id="electionField" style="display:none">
+                <span>Election</span>
+                <select id="registerElection">
+                  <option value="">Loading elections…</option>
+                </select>
+              </label>
+
+              <button type="submit" class="primary-button wide-button register-submit">Submit Registration</button>
+            </form>
+          </section>
+
+          <section id="signinView" class="view">
+            <button class="text-button back-button" data-view-target="homeView">Back</button>
+            <h1 class="auth-title">Secure Portal</h1>
+            <p class="auth-copy">Enter your 12-digit Aadhar number to access the voting ledger.</p>
+            <form id="signinForm" class="form-stack">
+              <label class="field">
+                <span>Aadhar Number</span>
+                <input type="text" id="signinAadhar" placeholder="Enter 12-digit Aadhar number" pattern="\d{12}" maxlength="12" required>
+              </label>
+              <button type="submit" class="primary-button wide-button">Authenticate Identity</button>
+            </form>
+            <p class="support-line">Need assistance? Contact support</p>
+            <div class="legal-copy">SECURED ACCESS PROTOCOL<br>VERIFIED DIGITAL COMPLIANCE</div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-mark">NV</div>
+        <div>
+          <p class="sidebar-overline">Voting Registry</p>
+          <h2>Sovereign Ledger</h2>
+          <span>Verified Voting Workspace</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-view-target="dashboardView">
+          <span class="nav-icon">DB</span>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item active" data-view-target="ballotView">
+          <span class="nav-icon">BL</span>
+          <span>Official Ballot</span>
+        </button>
+        <button class="nav-item" data-view-target="receiptView">
+          <span class="nav-icon">RC</span>
+          <span>Voting Receipt</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="signOutButton" class="secondary-button wide-button light-button">Log Out</button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section id="dashboardView" class="view app-view">
+        <div class="headline-block">
+          <p class="workspace-tag">Voting Status</p>
+          <h1 class="workspace-title">Citizen Dashboard</h1>
+        </div>
+
+        <div class="status-grid">
+          <article class="status-card">
+            <span class="card-overline">Registered Name</span>
+            <h3 id="dashboardName">-</h3>
+            <p id="dashboardRole">-</p>
+          </article>
+          <article class="status-card">
+            <span class="card-overline">Identity Record</span>
+            <h3>Verified</h3>
+            <p id="dashboardWallet">-</p>
+          </article>
+          <article class="status-card emphasis">
+            <span class="card-overline">Voting Status</span>
+            <h3 id="voteStatusHeading">-</h3>
+            <p id="voteStatusCopy">-</p>
+          </article>
+        </div>
+
+        <div class="workspace-actions">
+          <button id="goToVoteButton" class="primary-button submit-button">Go to Official Ballot</button>
+        </div>
+      </section>
+
+      <section id="ballotView" class="view app-view">
+        <div class="headline-block">
+          <p class="workspace-tag">Official Ballot</p>
+          <h1 class="workspace-title">Cast Your Vote</h1>
+        </div>
+
+        <!-- Election selector shown when multiple elections exist -->
+        <div id="electionSelectorWrap" style="margin-bottom:1.5rem;display:none">
+          <label style="font-size:0.875rem;font-weight:500;display:block;margin-bottom:0.5rem">Select Election</label>
+          <select id="electionSelector" style="width:100%;padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border,#ccc);font-size:0.9rem"></select>
+        </div>
+
+        <div class="ballot-canvas">
+          <div id="candidateList" class="candidate-grid"></div>
+        </div>
+
+        <div class="floating-action">
+          <button id="castVoteButton" class="primary-button submit-button">Verify &amp; Submit Ballot</button>
+        </div>
+      </section>
+
+      <section id="receiptView" class="view app-view">
+        <div class="headline-block">
+          <p class="workspace-tag">Voting Receipt</p>
+          <h1 class="workspace-title">Ballot Confirmation</h1>
+        </div>
+
+        <div class="receipt-card">
+          <div class="receipt-row">
+            <span>Transaction Hash</span>
+            <strong id="receiptId" style="font-size:0.75rem;word-break:break-all">-</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Selected Candidate</span>
+            <strong id="receiptCandidate">-</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Status</span>
+            <strong id="receiptStatus">Pending</strong>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle" class="modal-title">Notice</h3>
+      <p id="modalMessage" class="modal-message"></p>
+      <div id="modalActions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
