@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: voting-system-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false        # You will enter this manually in Render dashboard
+      - key: PRIVATE_KEY
+        sync: false        # Your wallet private key
+      - key: NETWORK
+        value: amoy        # or "local" if using local hardhat node
+      - key: RPC_URL_AMOY
+        sync: false        # Your Alchemy/Infura Amoy RPC URL
+      - key: AMOY_CONTRACT_ADDRESS
+        sync: false        # Deployed contract address
+      - key: ALLOWED_ORIGIN
+        sync: false        # Your Vercel frontend URL e.g. https://your-app.vercel.app

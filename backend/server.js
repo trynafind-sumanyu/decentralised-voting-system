@@ -16,7 +16,12 @@ const contract = require("./config/blockchain.js");
 const app = express();
 
 // middleware
-app.use(cors());           // ✅ FIX: allow frontend requests
+const allowedOrigin = process.env.ALLOWED_ORIGIN || "*";
+app.use(cors({
+  origin: allowedOrigin,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 // DB connect
