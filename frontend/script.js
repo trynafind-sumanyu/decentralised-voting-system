@@ -164,23 +164,41 @@ function renderReceipt() {
 
 // ─── Ballot ───────────────────────────────────────────────────────────────────
 async function loadElections() {
-  try {
-    const data = await apiFetch("/elections");
-    const elections = data.data || [];
-    return elections;
-  } catch (err) {
-    showAlert("Could not load elections: " + err.message, "error");
-    return [];
-  }
+  const data = await apiFetch("/elections");
+  return data.data || [];
 }
 
 async function loadBallot() {
-  candidateList.innerHTML = "<p style='padding:1rem;color:var(--color-text-secondary)'>Loading candidates…</p>";
+  // ✅ FIX 2: Better loading state with spinner
+  candidateList.innerHTML = `
+    <div style="padding:2rem;text-align:center;color:var(--muted)">
+      <p style="font-size:1rem;margin-bottom:0.5rem">⏳ Loading ballot…</p>
+      <p style="font-size:0.8rem">This may take a moment if the server is waking up.</p>
+    </div>`;
 
-  const elections = await loadElections();
+  let elections = [];
+  try {
+    elections = await loadElections();
+  } catch (err) {
+    // ✅ FIX 3: Retry button instead of silent failure
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--danger);margin-bottom:1rem">⚠️ Could not load elections. The server may be starting up.</p>
+        <button onclick="loadBallot()" class="primary-button" style="padding:10px 24px;border-radius:12px">
+          🔄 Retry
+        </button>
+      </div>`;
+    return;
+  }
 
   if (!elections.length) {
-    candidateList.innerHTML = "<p style='padding:1rem;color:var(--color-text-secondary)'>No elections found.</p>";
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--muted);margin-bottom:1rem">No elections found. Please check back later.</p>
+        <button onclick="loadBallot()" class="secondary-button" style="padding:10px 24px;border-radius:12px">
+          🔄 Refresh
+        </button>
+      </div>`;
     return;
   }
 
@@ -264,7 +282,13 @@ async function renderCandidates(electionId) {
     });
 
   } catch (err) {
-    candidateList.innerHTML = `<p style='padding:1rem;color:var(--color-text-danger)'>Error: ${err.message}</p>`;
+    candidateList.innerHTML = `
+      <div style="padding:2rem;text-align:center">
+        <p style="color:var(--danger);margin-bottom:1rem">⚠️ Could not load candidates: ${err.message}</p>
+        <button onclick="renderCandidates('${electionId}')" class="primary-button" style="padding:10px 24px;border-radius:12px">
+          🔄 Retry
+        </button>
+      </div>`;
   }
 }
 
@@ -422,6 +446,9 @@ document.getElementById("signinForm").addEventListener("submit", async (event) =
     state.lastTxHash = "";
     renderDashboard();
     showAuthenticatedApp("dashboardView");
+
+    // u2705 FIX 1: Preload ballot in background after sign-in to wake up Render
+    if (!state.currentUser.hasVoted) { loadBallot().catch(() => {}); }
 
   } catch (err) {
     showAlert(
