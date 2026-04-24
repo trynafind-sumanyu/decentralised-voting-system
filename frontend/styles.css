@@ -618,6 +618,41 @@ select:focus {
   font-size: 1rem;
 }
 
+.admin-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+  max-width: 1180px;
+}
+
+.admin-card {
+  width: 100%;
+  max-width: none;
+}
+
+.admin-card-title {
+  margin: 0 0 1rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.admin-form {
+  gap: 12px;
+}
+
+.admin-submit {
+  margin-top: 4px;
+}
+
+.admin-election-list {
+  display: grid;
+  gap: 4px;
+}
+
 .receipt-row {
   display: flex;
   justify-content: space-between;
@@ -700,6 +735,11 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
+  .admin-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
   .floating-action {
     position: static;
     margin-top: 26px;
@@ -734,6 +774,10 @@ select:focus {
   .admin-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-card {
+    padding: 22px 18px;
   }
 }
 
@@ -933,6 +977,31 @@ select:focus {
   input, select {
     padding: 11px 12px;
     font-size: 0.95rem;
+  }
+
+  .admin-grid {
+    gap: 14px;
+  }
+
+  .admin-card {
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+
+  .admin-card-title {
+    font-size: 1.3rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .admin-toolbar {
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .admin-toolbar .secondary-button {
+    width: 100%;
   }
 
   /* Candidate card compact */

@@ -74,7 +74,6 @@
                 <input type="text" id="registerName" placeholder="Enter full name" required>
               </label>
 
-              <!-- Voter-only fields -->
               <label class="field" id="aadharField">
                 <span>Aadhar Number (12 digits)</span>
                 <input type="text" id="registerAadhar" placeholder="Enter 12-digit Aadhar number" pattern="\d{12}" maxlength="12">
@@ -88,7 +87,6 @@
                 <input type="email" id="registerEmail" placeholder="Enter email address">
               </label>
 
-              <!-- Candidate-only fields -->
               <label class="field" id="partyField" style="display:none">
                 <span>Political Party</span>
                 <input type="text" id="registerParty" placeholder="Enter party name">
@@ -96,7 +94,7 @@
               <label class="field" id="electionField" style="display:none">
                 <span>Election</span>
                 <select id="registerElection">
-                  <option value="">Loading elections…</option>
+                  <option value="">Loading elections...</option>
                 </select>
               </label>
 
@@ -194,7 +192,6 @@
           <h1 class="workspace-title">Cast Your Vote</h1>
         </div>
 
-        <!-- Election selector shown when multiple elections exist -->
         <div id="electionSelectorWrap" style="margin-bottom:1.5rem;display:none">
           <label style="font-size:0.875rem;font-weight:500;display:block;margin-bottom:0.5rem">Select Election</label>
           <select id="electionSelector" style="width:100%;padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border,#ccc);font-size:0.9rem"></select>
@@ -245,34 +242,36 @@
           <button id="adminLogoutButton" class="secondary-button">Admin Log Out</button>
         </div>
 
-        <div class="receipt-card" style="max-width:560px;margin-bottom:2rem">
-          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;margin:0 0 1rem">Create New Election</h3>
-          <div class="form-stack" id="electionForm" style="gap:12px">
-            <label class="field">
-              <span>Election Title</span>
-              <input type="text" id="electionTitle" placeholder="e.g. General Election 2025" required>
-            </label>
-            <label class="field">
-              <span>Description</span>
-              <input type="text" id="electionDesc" placeholder="Brief description">
-            </label>
-            <label class="field">
-              <span>Start Date</span>
-              <input type="date" id="electionStart" required>
-            </label>
-            <label class="field">
-              <span>End Date</span>
-              <input type="date" id="electionEnd" required>
-            </label>
-            <button id="createElectionBtn" class="primary-button wide-button" style="margin-top:4px">
-              Create Election
-            </button>
+        <div class="admin-grid">
+          <div class="receipt-card admin-card">
+            <h3 class="admin-card-title">Create New Election</h3>
+            <div class="form-stack admin-form" id="electionForm">
+              <label class="field">
+                <span>Election Title</span>
+                <input type="text" id="electionTitle" placeholder="e.g. General Election 2025" required>
+              </label>
+              <label class="field">
+                <span>Description</span>
+                <input type="text" id="electionDesc" placeholder="Brief description">
+              </label>
+              <label class="field">
+                <span>Start Date</span>
+                <input type="date" id="electionStart" required>
+              </label>
+              <label class="field">
+                <span>End Date</span>
+                <input type="date" id="electionEnd" required>
+              </label>
+              <button id="createElectionBtn" class="primary-button wide-button admin-submit">
+                Create Election
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="receipt-card" style="max-width:560px">
-          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;margin:0 0 1rem">Existing Elections</h3>
-          <div id="adminElectionList"><p style="color:var(--muted);font-size:0.9rem">Loading…</p></div>
+          <div class="receipt-card admin-card">
+            <h3 class="admin-card-title">Existing Elections</h3>
+            <div id="adminElectionList" class="admin-election-list"><p style="color:var(--muted);font-size:0.9rem">Loading...</p></div>
+          </div>
         </div>
       </section>
     </main>
