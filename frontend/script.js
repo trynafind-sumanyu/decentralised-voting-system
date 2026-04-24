@@ -15,6 +15,7 @@ const state = {
   adminToken: localStorage.getItem(ADMIN_TOKEN_KEY) || "",
   adminUser: null,
   adminSelectedElectionId: "",
+  adminCandidateSelections: {},
 };
 
 const views = document.querySelectorAll(".view");
@@ -47,6 +48,7 @@ const adminLoginForm = document.getElementById("adminLoginForm");
 const adminLogoutButton = document.getElementById("adminLogoutButton");
 const adminElectionSelect = document.getElementById("adminElectionSelect");
 const adminCandidateList = document.getElementById("adminCandidateList");
+const saveCandidateApprovalButton = document.getElementById("saveCandidateApprovalButton");
 
 async function apiFetch(path, options = {}) {
   const headers = {
@@ -491,15 +493,6 @@ function renderAdminElectionSelect(elections) {
   adminElectionSelect.value = state.adminSelectedElectionId;
 }
 
-function createCandidateActionButton(label, className, onClick) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `admin-action-button ${className}`;
-  button.textContent = label;
-  button.addEventListener("click", onClick);
-  return button;
-}
-
 async function updateCandidateApproval(candidateId, approvalStatus) {
   await apiFetch(`/candidates/${candidateId}/approval`, {
     method: "PATCH",
@@ -520,10 +513,14 @@ async function updateCandidateApproval(candidateId, approvalStatus) {
 async function loadAdminCandidates() {
   if (!state.adminSelectedElectionId) {
     adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Select an election to review candidates.</p>";
+    state.adminCandidateSelections = {};
+    saveCandidateApprovalButton.disabled = true;
     return;
   }
 
   adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>Loading candidates...</p>";
+  state.adminCandidateSelections = {};
+  saveCandidateApprovalButton.disabled = true;
 
   try {
     const data = await apiFetch(`/candidates/admin?electionId=${encodeURIComponent(state.adminSelectedElectionId)}`, {
@@ -535,67 +532,44 @@ async function loadAdminCandidates() {
 
     if (!reviewCandidates.length) {
       adminCandidateList.innerHTML = "<p style='color:var(--muted);font-size:0.9rem'>No registered candidates were found for this election yet.</p>";
+      saveCandidateApprovalButton.disabled = true;
       return;
     }
 
     adminCandidateList.innerHTML = "";
+    state.adminCandidateSelections = Object.fromEntries(
+      reviewCandidates.map((candidate) => [candidate._id, candidate.approvalStatus === "approved"])
+    );
 
     reviewCandidates.forEach((candidate) => {
       const item = document.createElement("article");
       item.className = "admin-candidate-item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "admin-candidate-checkbox";
+      checkbox.checked = candidate.approvalStatus === "approved";
+      checkbox.addEventListener("change", () => {
+        state.adminCandidateSelections[candidate._id] = checkbox.checked;
+      });
 
       const meta = document.createElement("div");
       meta.className = "admin-candidate-meta";
       meta.innerHTML = `
         <h4>${candidate.name}</h4>
         <p>${candidate.party || "Independent"}</p>
-        <p>Current status: ${candidate.approvalStatus}</p>
+        <p>Current status: <span class="admin-status-badge ${candidate.approvalStatus}">${candidate.approvalStatus}</span></p>
       `;
 
-      const actions = document.createElement("div");
-      actions.className = "admin-candidate-actions";
-
-      const badge = document.createElement("span");
-      badge.className = `admin-status-badge ${candidate.approvalStatus}`;
-      badge.textContent = candidate.approvalStatus;
-      actions.appendChild(badge);
-
-      if (candidate.approvalStatus !== "approved") {
-        actions.appendChild(createCandidateActionButton("Approve", "approve", async () => {
-          try {
-            await updateCandidateApproval(candidate._id, "approved");
-            openModal("Candidate Approved", `${candidate.name} is now eligible to appear on the ballot.`, [
-              { label: "OK", onClick: () => showAuthenticatedApp("adminView") },
-            ]);
-          } catch (error) {
-            openModal("Approval Failed", error.message, [
-              { label: "Close", variant: "secondary", onClick: () => {} },
-            ]);
-          }
-        }));
-      }
-
-      if (candidate.approvalStatus !== "rejected") {
-        actions.appendChild(createCandidateActionButton("Reject", "reject", async () => {
-          try {
-            await updateCandidateApproval(candidate._id, "rejected");
-            openModal("Candidate Rejected", `${candidate.name} will not appear on the ballot.`, [
-              { label: "OK", onClick: () => showAuthenticatedApp("adminView") },
-            ]);
-          } catch (error) {
-            openModal("Rejection Failed", error.message, [
-              { label: "Close", variant: "secondary", onClick: () => {} },
-            ]);
-          }
-        }));
-      }
-
+      item.appendChild(checkbox);
       item.appendChild(meta);
-      item.appendChild(actions);
       adminCandidateList.appendChild(item);
     });
+    saveCandidateApprovalButton.disabled = false;
   } catch (error) {
     adminCandidateList.innerHTML = `<p style='color:var(--danger);font-size:0.9rem'>Error: ${error.message}</p>`;
+    state.adminCandidateSelections = {};
+    saveCandidateApprovalButton.disabled = true;
   }
 }
 
@@ -813,6 +787,38 @@ electionSelector.addEventListener("change", async () => {
 adminElectionSelect.addEventListener("change", async () => {
   state.adminSelectedElectionId = adminElectionSelect.value;
   await loadAdminCandidates();
+});
+
+saveCandidateApprovalButton.addEventListener("click", async () => {
+  const candidateIds = Object.keys(state.adminCandidateSelections);
+
+  if (!candidateIds.length) {
+    openModal("No Candidates Found", "There are no registered candidates to update for this election.", [
+      { label: "Close", variant: "secondary", onClick: () => {} },
+    ]);
+    return;
+  }
+
+  setLoading(saveCandidateApprovalButton, true);
+
+  try {
+    await Promise.all(candidateIds.map(async (candidateId) => {
+      const approvalStatus = state.adminCandidateSelections[candidateId] ? "approved" : "rejected";
+      await updateCandidateApproval(candidateId, approvalStatus);
+    }));
+
+    await loadAdminCandidates();
+
+    openModal("Candidate Access Saved", "The selected candidates are now the ones allowed to appear on the ballot.", [
+      { label: "OK", onClick: () => showAuthenticatedApp("adminView") },
+    ]);
+  } catch (error) {
+    openModal("Update Failed", error.message, [
+      { label: "Close", variant: "secondary", onClick: () => {} },
+    ]);
+  } finally {
+    setLoading(saveCandidateApprovalButton, false);
+  }
 });
 
 goToVoteButton.addEventListener("click", async () => {

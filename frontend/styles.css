@@ -675,10 +675,17 @@ select:focus {
   gap: 14px;
 }
 
+.admin-candidate-help {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .admin-candidate-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
   padding: 16px 0;
   border-bottom: 1px solid var(--line);
 }
@@ -686,6 +693,13 @@ select:focus {
 .admin-candidate-item:last-child {
   border-bottom: none;
   padding-bottom: 0;
+}
+
+.admin-candidate-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  accent-color: var(--navy);
 }
 
 .admin-candidate-meta h4 {
@@ -699,14 +713,6 @@ select:focus {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
-}
-
-.admin-candidate-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .admin-status-badge {
@@ -753,6 +759,16 @@ select:focus {
 .admin-action-button.reject {
   background: rgba(160, 59, 59, 0.12);
   color: var(--danger);
+}
+
+.admin-candidate-footer {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-candidate-footer .primary-button {
+  min-width: 220px;
 }
 
 .receipt-row {
@@ -893,11 +909,7 @@ select:focus {
   }
 
   .admin-candidate-item {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-candidate-actions {
-    justify-content: flex-start;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 }
 
@@ -1126,6 +1138,15 @@ select:focus {
 
   .admin-action-button {
     width: 100%;
+  }
+
+  .admin-candidate-footer {
+    justify-content: stretch;
+  }
+
+  .admin-candidate-footer .primary-button {
+    width: 100%;
+    min-width: 0;
   }
 
   /* Candidate card compact */
