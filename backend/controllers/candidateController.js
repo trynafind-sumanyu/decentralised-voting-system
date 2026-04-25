@@ -2,7 +2,6 @@ const Candidate = require("../models/Candidate");
 const Election = require("../models/Election");
 const { registerCandidateOnBlockchain } = require("../utils/blockchainCandidate");
 const { getElectionStatus } = require("../utils/electionStatus");
-const { sanitizeName, sanitizeParty, sanitizeObjectId } = require("../utils/sanitize");
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -18,20 +17,10 @@ exports.registerCandidate = async (req, res) => {
       });
     }
 
-    // Sanitize inputs
-    const trimmedName = sanitizeName(name);
-    if (!trimmedName) {
-      return res.status(400).json({ message: "Candidate name contains invalid characters." });
-    }
+    const trimmedName = name.trim();
+    const trimmedParty = party.trim();
 
-    const trimmedParty = sanitizeParty(party);
-
-    const cleanElectionId = sanitizeObjectId(electionId);
-    if (!cleanElectionId) {
-      return res.status(400).json({ message: "Invalid election ID." });
-    }
-
-    const election = await Election.findById(cleanElectionId);
+    const election = await Election.findById(electionId);
     if (!election) {
       return res.status(404).json({
         message: "Election not found",
@@ -46,7 +35,7 @@ exports.registerCandidate = async (req, res) => {
     }
 
     const existingCandidate = await Candidate.findOne({
-      electionId: cleanElectionId,
+      electionId,
       name: new RegExp(`^${escapeRegex(trimmedName)}$`, "i"),
     });
 
@@ -56,15 +45,11 @@ exports.registerCandidate = async (req, res) => {
       });
     }
 
-    // Save Cloudinary URL if photo was uploaded
-    const photoUrl = req.file ? req.file.path : null;
-
     const newCandidate = new Candidate({
       name: trimmedName,
       party: trimmedParty,
-      electionId: cleanElectionId,
+      electionId,
       approvalStatus: "pending",
-      photoUrl,
     });
 
     await newCandidate.save();

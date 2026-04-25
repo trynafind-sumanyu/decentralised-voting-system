@@ -45,11 +45,6 @@ const candidateSchema = new mongoose.Schema({
     default: null,
   },
 
-  photoUrl: {
-    type: String,
-    default: null,   // Cloudinary URL stored here after upload
-  },
-
   createdAt: {
     type: Date,
     default: Date.now,
