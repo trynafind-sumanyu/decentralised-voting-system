@@ -911,7 +911,8 @@ castVoteButton.addEventListener("click", async () => {
       {
         electionId: state.currentElectionId,
         txHash: data.txHash,
-        candidateName: state.selectedCandidateName || "--",  // ✅ persist candidate name
+        // ✅ use name from API response (saved in MongoDB) or fallback to local state
+        candidateName: data.candidateName || state.selectedCandidateName || "--",
         votedAt: new Date().toISOString(),
       },
     ];

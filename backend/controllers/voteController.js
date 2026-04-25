@@ -55,28 +55,31 @@ exports.castVote = async (req, res) => {
     const contract = getContract();
     const scopedVoterKey = buildScopedVoterKey(voterId.toString(), electionId.toString());
 
-    let tx;
+    let tx = null;
     try {
       tx = await contract.vote(scopedVoterKey, chainCandidateId);
       await tx.wait();
     } catch (blockchainError) {
-      return res.status(500).json({
-        message: "Blockchain vote failed",
-        error: blockchainError.message,
-      });
+      // ✅ Non-blocking: log error but don't fail the vote
+      console.warn("Blockchain vote failed (non-blocking):", blockchainError.message);
     }
 
     const vote = new Vote({
       voterId,
       candidateId,
       electionId,
-      txHash: tx.hash,
+      txHash: tx ? tx.hash : "pending",
     });
     await vote.save();
 
+    const candidateLabel = candidate.isNOTA
+      ? "None of the Above (NOTA)"
+      : `${candidate.name} (${candidate.party || "Independent"})`;
+
     voter.votedElections.push({
       electionId,
-      txHash: tx.hash,
+      txHash: tx ? tx.hash : "pending",
+      candidateName: candidateLabel,
       votedAt: new Date(),
     });
     await voter.save();
@@ -86,7 +89,8 @@ exports.castVote = async (req, res) => {
 
     res.status(201).json({
       message: "Vote cast successfully",
-      txHash: tx.hash,
+      txHash: tx ? tx.hash : "pending",
+      candidateName: candidateLabel,
       vote,
     });
   } catch (error) {
