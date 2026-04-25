@@ -277,7 +277,7 @@ function renderReceipt() {
     receiptStatus.textContent = "Recorded on blockchain";
   } else if (currentVote?.txHash) {
     receiptId.textContent = currentVote.txHash;
-    receiptCandidate.textContent = "--";
+    receiptCandidate.textContent = currentVote.candidateName || "--";  // ✅ show saved name
     receiptStatus.textContent = "Recorded on blockchain";
   } else {
     receiptId.textContent = "--";
@@ -910,6 +910,7 @@ castVoteButton.addEventListener("click", async () => {
       {
         electionId: state.currentElectionId,
         txHash: data.txHash,
+        candidateName: state.selectedCandidateName || "--",  // ✅ persist candidate name
         votedAt: new Date().toISOString(),
       },
     ];
