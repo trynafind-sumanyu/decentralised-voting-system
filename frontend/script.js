@@ -444,7 +444,6 @@ async function setRole(role) {
   document.getElementById("partyField").style.display = role === "candidate" ? "" : "none";
   document.getElementById("electionField").style.display = role === "candidate" ? "" : "none";
   document.getElementById("photoField").style.display = role === "candidate" ? "" : "none";
-  document.getElementById("photoField").style.display = role === "candidate" ? "" : "none";
 
   document.getElementById("registerAadhar").required = role === "voter";
   document.getElementById("registerDOB").required = role === "voter";
@@ -638,24 +637,57 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
         body: JSON.stringify({ name, email, aadharNumber, dateOfBirth }),
       });
     } else {
+      // ── Candidate field validation ─────────────────────────────────────────
       const party = document.getElementById("registerParty").value.trim();
       const electionId = document.getElementById("registerElection").value;
+      const photoInput = document.getElementById("registerPhoto");
+      const photoFile = photoInput ? photoInput.files[0] : null;
 
-      // Use FormData so photo file can be sent with text fields
-      const photoFile = document.getElementById("registerPhoto").files[0];
+      if (!party) {
+        throw new Error("Political party name is required.");
+      }
+
+      if (!electionId) {
+        throw new Error("Please select an election to register for.");
+      }
+
+      // ✅ Photo is now MANDATORY for candidates
+      if (!photoFile) {
+        throw new Error("A candidate photo is required. Please upload a JPG or PNG.");
+      }
+
+      // Extra safety: re-check file type and size before sending
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowedTypes.includes(photoFile.type)) {
+        throw new Error("Only JPG, PNG, or WebP images are allowed.");
+      }
+
+      if (photoFile.size > 2 * 1024 * 1024) {
+        throw new Error("Photo must be under 2MB. Please choose a smaller image.");
+      }
+
+      // ── Build FormData and send ────────────────────────────────────────────
       const formData = new FormData();
       formData.append("name", name);
       formData.append("party", party);
       formData.append("electionId", electionId);
-      if (photoFile) formData.append("photo", photoFile);
+      formData.append("photo", photoFile);
 
-      const uploadRes = await fetch(`${API_BASE}/candidates`, {
-        method: "POST",
-        body: formData,
-        // Do NOT set Content-Type — browser sets multipart boundary automatically
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.message || "Registration failed");
+      let uploadRes, uploadData;
+      try {
+        uploadRes = await fetch(`${API_BASE}/candidates`, {
+          method: "POST",
+          body: formData,
+          // Do NOT set Content-Type — browser sets multipart boundary automatically
+        });
+        uploadData = await uploadRes.json();
+      } catch (networkErr) {
+        throw new Error("Could not reach the server. Please check your connection and try again.");
+      }
+
+      if (!uploadRes.ok) {
+        throw new Error(uploadData?.message || "Candidate registration failed. Please try again.");
+      }
     }
 
     const registeredRole = state.currentRole;
