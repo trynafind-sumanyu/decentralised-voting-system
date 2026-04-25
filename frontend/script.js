@@ -113,6 +113,7 @@ function clearAlert() {
 
 function resetAuthForms() {
   document.getElementById("registerForm").reset();
+  document.getElementById("photoPreview").style.display = "none";
   document.getElementById("signinForm").reset();
   adminLoginForm.reset();
 }
@@ -235,6 +236,7 @@ async function ensureElectionsLoaded() {
 
 function renderDashboard() {
   const user = state.currentUser;
+  if (!user) return; // Admin portal has no voter session — skip dashboard render
   const currentElection = getCurrentElection();
   const currentVote = getVoteRecordForElection();
 
@@ -331,7 +333,12 @@ async function renderCandidates(electionId) {
             <h3>${candidate.name}</h3>
             <p>${candidate.party || "Independent"}</p>
           </div>
-          <div class="candidate-symbol">${symbol || "CA"}</div>
+          <div class="candidate-symbol" style="${candidate.photoUrl ? "padding:0;overflow:hidden;" : ""}">
+            ${candidate.photoUrl
+              ? `<img src="${candidate.photoUrl}" alt="${candidate.name}" style="width:100%;height:100%;object-fit:cover;">`
+              : (symbol || "CA")
+            }
+          </div>
         </div>
         <div class="selection-row">
           <div class="selection-dot" aria-hidden="true"></div>
@@ -429,12 +436,15 @@ async function setRole(role) {
   state.currentRole = role;
   registerHeading.textContent = role === "candidate" ? "Register Candidate" : "Register Voter";
   document.getElementById("registerForm").reset();
+  document.getElementById("photoPreview").style.display = "none";
 
   document.getElementById("aadharField").style.display = role === "voter" ? "" : "none";
   document.getElementById("dobField").style.display = role === "voter" ? "" : "none";
   document.getElementById("emailField").style.display = role === "voter" ? "" : "none";
   document.getElementById("partyField").style.display = role === "candidate" ? "" : "none";
   document.getElementById("electionField").style.display = role === "candidate" ? "" : "none";
+  document.getElementById("photoField").style.display = role === "candidate" ? "" : "none";
+  document.getElementById("photoField").style.display = role === "candidate" ? "" : "none";
 
   document.getElementById("registerAadhar").required = role === "voter";
   document.getElementById("registerDOB").required = role === "voter";
@@ -631,10 +641,21 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
       const party = document.getElementById("registerParty").value.trim();
       const electionId = document.getElementById("registerElection").value;
 
-      await apiFetch("/candidates", {
+      // Use FormData so photo file can be sent with text fields
+      const photoFile = document.getElementById("registerPhoto").files[0];
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("party", party);
+      formData.append("electionId", electionId);
+      if (photoFile) formData.append("photo", photoFile);
+
+      const uploadRes = await fetch(`${API_BASE}/candidates`, {
         method: "POST",
-        body: JSON.stringify({ name, party, electionId }),
+        body: formData,
+        // Do NOT set Content-Type — browser sets multipart boundary automatically
       });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.message || "Registration failed");
     }
 
     const registeredRole = state.currentRole;
@@ -650,6 +671,7 @@ document.getElementById("registerForm").addEventListener("submit", async (event)
           onClick: () => {
             state.currentRole = registeredRole;
             document.getElementById("registerForm").reset();
+  document.getElementById("photoPreview").style.display = "none";
             showView("registerFormView");
           },
         },
@@ -967,3 +989,29 @@ document.getElementById("signOutButton").addEventListener("click", () => {
 closeModal();
 showAuthPortal("homeView");
 verifyStoredAdminSession();
+
+// ─── Candidate Photo Preview ──────────────────────────────────────────────────
+document.getElementById("registerPhoto").addEventListener("change", function () {
+  const file = this.files[0];
+  const preview = document.getElementById("photoPreview");
+  const previewImg = document.getElementById("photoPreviewImg");
+
+  if (!file) {
+    preview.style.display = "none";
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    alert("Photo must be under 2MB.");
+    this.value = "";
+    preview.style.display = "none";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImg.src = e.target.result;
+    preview.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
