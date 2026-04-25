@@ -1,74 +1,94 @@
-# 🗳️ Decentralized Voting System
+# 🗳️ Sovereign Ledger — Decentralised Voting System
 
-A blockchain-based voting system built on Polygon that enables secure, transparent, and immutable voter registration and voting through smart contracts.
+A full-stack blockchain-based voting platform built on **Polygon Amoy** with an **Express.js** backend, **MongoDB Atlas** database, and **Cloudinary** image storage. Designed to be transparent, tamper-proof, and deployable at zero cost.
+
+🌐 **Live Demo:** https://decentralised-voting-system-eta.vercel.app
+⚙️ **Backend API:** https://voting-system-backend-9xsy.onrender.com
 
 ---
 
 ## 📋 Table of Contents
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running Locally](#running-locally)
-- [Deployment](#deployment)
-- [API Documentation](#api-documentation)
-- [Smart Contract](#smart-contract)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Security](#security)
-- [Contributing](#contributing)
-- [License](#license)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Local Setup](#-local-setup)
+- [Environment Variables](#-environment-variables)
+- [Deployment](#-deployment)
+- [API Reference](#-api-reference)
+- [Smart Contract](#-smart-contract)
+- [Security](#-security)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
 ## ✨ Features
 
-### Core Functionality
-- ✅ **Secure Voter Registration** - Age verification, Aadhar number validation, email verification
-- ✅ **Blockchain Voting** - Immutable vote recording on Polygon blockchain
-- ✅ **Election Management** - Create and manage multiple elections
-- ✅ **Candidate Registration** - Register candidates for specific elections
-- ✅ **Vote Verification** - Transaction receipts with blockchain confirmation
-- ✅ **Duplicate Prevention** - Aadhar and email uniqueness constraints
+### Voter Features
+- 🪪 **Aadhar-based identity** — 12-digit Aadhar number as unique voter ID
+- 🔞 **Age verification** — under-18 registration automatically rejected
+- 🗳️ **Blockchain voting** — every vote recorded immutably on Polygon Amoy
+- 🧾 **Voting receipt** — transaction hash + candidate name shown after voting, persisted across sessions
+- 🚫 **Double-vote prevention** — enforced at both MongoDB and smart contract level
 
-### Technical Features
-- 🔒 MongoDB Atlas cloud database
-- ⛓️ Polygon (Amoy testnet) blockchain integration
-- 🌐 CORS-enabled REST API
-- 🎨 Responsive web frontend
-- 📱 Real-time voter feedback
-- 🔍 Transaction tracking with Polygonscan
+### Candidate Features
+- 📸 **Photo upload** — candidate photo required at registration (stored on Cloudinary, auto face-cropped)
+- ✅ **Admin approval workflow** — candidates are pending until admin approves
+- 🏛️ **Party affiliation** — party name stored and displayed on ballot
+- 🔘 **NOTA option** — None of the Above always available
+
+### Admin Features
+- 🔐 **Separate admin login** — JWT-protected admin session
+- 📅 **Election management** — create elections with title, description, dates, status
+- 👥 **Candidate approval panel** — approve or reject candidates per election
+- 📊 **Election results** — view vote counts per candidate
+
+### Security Features
+- 🛡️ **NoSQL injection protection** — express-mongo-sanitize strips $ and . operators globally
+- ✍️ **Field-level validation** — name, email, Aadhar, ObjectId all sanitized before DB queries
+- 🔑 **JWT admin auth** — admin endpoints protected with signed tokens
+- 🌐 **CORS whitelist** — only the Vercel frontend domain can call the backend
+- 📁 **No sensitive data in frontend** — private keys and secrets never leave the backend
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Blockchain
-- **Smart Contract**: Solidity 0.8.20
-- **Network**: Polygon Amoy (testnet)
-- **Framework**: Hardhat
-- **Web3 Library**: ethers.js v6
+### Frontend
+| Technology | Purpose |
+|---|---|
+| HTML5 / CSS3 / Vanilla JS | Core UI — no framework, zero build step |
+| Vercel | Hosting + auto-deploy on every git push |
+| Fetch API + FormData | REST calls + multipart photo upload |
 
 ### Backend
-- **Runtime**: Node.js 18+
-- **Framework**: Express.js 5.x
-- **Database**: MongoDB 9.4 (Atlas)
-- **Language**: JavaScript (CommonJS)
+| Technology | Purpose |
+|---|---|
+| Node.js 18.x | Runtime |
+| Express.js v5 | REST API framework |
+| Mongoose v9 | MongoDB ODM |
+| Multer + multer-storage-cloudinary | Candidate photo upload |
+| Cloudinary | Cloud image storage (auto face-crop) |
+| express-mongo-sanitize | NoSQL injection protection |
+| validator.js | Email, string, Aadhar validation |
+| JSON Web Tokens | Admin authentication |
+| Render | Backend hosting + auto-deploy |
 
-### Frontend
-- **HTML5** - Markup
-- **CSS3** - Styling (custom variables, responsive design)
-- **JavaScript (ES6+)** - Client-side logic
-- **Fetch API** - HTTP requests
+### Database
+| Technology | Purpose |
+|---|---|
+| MongoDB Atlas | Cloud NoSQL database |
+| Mongoose Schemas | Voter, Candidate, Election, Vote models |
 
-### DevOps
-- **Package Manager**: npm
-- **Version Control**: Git
-- **Deployment**: Render (backend), GitHub Pages/Netlify (frontend)
-- **Database Hosting**: MongoDB Atlas
+### Blockchain
+| Technology | Purpose |
+|---|---|
+| Solidity ^0.8.20 | Smart contract |
+| Hardhat | Compile + deploy toolchain |
+| Ethers.js v6 | Backend to blockchain communication |
+| Polygon Amoy Testnet | Fast, free-gas blockchain network |
+| Alchemy / Infura | RPC provider |
 
 ---
 
@@ -76,561 +96,295 @@ A blockchain-based voting system built on Polygon that enables secure, transpare
 
 ```
 decentralised-voting-system/
-├── blockchain/                          # Smart contract & deployment
+├── blockchain/
 │   ├── contracts/
-│   │   └── Voting.sol                   # Main voting smart contract
+│   │   └── Voting.sol              # Smart contract (tracks votes by voterId string)
 │   ├── scripts/
-│   │   └── deploy.js                    # Deployment script
-│   ├── hardhat.config.ts                # Hardhat configuration
-│   ├── package.json
-│   └── .env.example                     # Environment template
+│   │   └── deploy.js               # Hardhat deploy script
+│   ├── hardhat.config.ts
+│   └── .env.example
 │
-├── backend/                             # API server
+├── backend/
+│   ├── abi/
+│   │   └── Voting.json             # ABI used by backend to call contract
 │   ├── config/
-│   │   ├── db.js                        # MongoDB connection
-│   │   └── blockchain.js                # Smart contract interaction
-│   ├── controllers/                     # Request handlers
-│   │   ├── voterController.js
-│   │   ├── electionController.js
-│   │   ├── candidateController.js
-│   │   └── voteController.js
-│   ├── models/                          # MongoDB schemas
-│   │   ├── Voter.js
-│   │   ├── Election.js
-│   │   ├── Candidate.js
-│   │   └── Vote.js
-│   ├── routes/                          # API routes
+│   │   ├── db.js                   # MongoDB connection
+│   │   └── blockchain.js           # Ethers.js contract setup
+│   ├── controllers/
+│   │   ├── voterController.js      # Register voter, lookup by Aadhar
+│   │   ├── candidateController.js  # Register candidate, approval
+│   │   ├── electionController.js   # Create/list elections
+│   │   ├── voteController.js       # Cast vote (DB + blockchain)
+│   │   └── adminController.js      # Admin login/session
+│   ├── middleware/
+│   │   ├── requireAdmin.js         # JWT admin auth middleware
+│   │   └── upload.js               # Cloudinary multer storage
+│   ├── models/
+│   │   ├── Voter.js                # votedElections includes txHash + candidateName
+│   │   ├── Candidate.js            # photoUrl, approvalStatus, blockchainId
+│   │   ├── Election.js             # title, dates, status
+│   │   └── Vote.js                 # voterId, candidateId, txHash
+│   ├── routes/
 │   │   ├── voterRoutes.js
-│   │   ├── electionRoutes.js
-│   │   ├── candidateRoutes.js
-│   │   └── voteRoutes.js
-│   ├── server.js                        # Express app entry point
-│   ├── package.json
-│   └── .env.example                     # Environment template
+│   │   ├── candidateRoutes.js      # POST uses multer upload middleware
+│   │   ├── electionRoutes.js       # POST requires admin
+│   │   ├── voteRoutes.js
+│   │   └── adminRoutes.js
+│   ├── utils/
+│   │   ├── sanitize.js             # sanitizeName, sanitizeEmail, sanitizeAadhar etc.
+│   │   ├── adminAuth.js            # JWT sign/verify
+│   │   ├── blockchainCandidate.js  # registerCandidateOnBlockchain()
+│   │   ├── electionStatus.js       # upcoming / active / completed
+│   │   └── voteScope.js            # buildScopedVoterKey()
+│   ├── server.js                   # Express app, CORS, mongo-sanitize middleware
+│   └── package.json
 │
-├── frontend/                            # Web interface
-│   ├── index.html                       # Main page
-│   ├── script.js                        # Client-side logic
-│   ├── styles.css                       # Styling
-│   └── .env.example                     # Environment template
+├── frontend/
+│   ├── index.html                  # Single page app
+│   ├── script.js                   # All client logic
+│   └── styles.css                  # Responsive design (mobile + desktop)
 │
-├── DEPLOYMENT_GUIDE.md                  # Deployment instructions
-├── DEPLOYMENT_STEPS.md                  # Detailed step-by-step
-├── DEPLOYMENT_CHECKLIST.md              # Progress tracker
-├── QUICK_REFERENCE.md                   # Quick commands
-├── GITHUB_SECURITY_CHECKLIST.md         # Security steps
-├── GITHUB_SAFETY_REPORT.md              # Security analysis
-├── .gitignore                           # Git ignore rules
-└── README.md                            # This file
+├── render.yaml                     # Render deployment config
+├── vercel.json                     # Vercel routing config
+└── README.md
 ```
 
 ---
 
 ## 📋 Prerequisites
 
-### System Requirements
-- **Node.js** 18.x or higher
-- **npm** 9.x or higher
-- **Git** 2.x or higher
-
-### External Accounts Required
-- **MetaMask** or similar Web3 wallet
-- **GitHub** account (for code hosting)
-- **MongoDB Atlas** account (free tier available)
-- **Render** account (for backend hosting)
-
-### Testnet Requirements
-- **Polygon Amoy testnet MATIC** (get from faucet: https://faucet.polygon.technology/)
+- Node.js 18.x+
+- npm 9.x+
+- Git
+- MongoDB Atlas account (free)
+- Cloudinary account (free)
+- Render account (free)
+- Vercel account (free)
+- Alchemy or Infura account for Polygon Amoy RPC (free)
+- A crypto wallet with test MATIC from https://faucet.polygon.technology/
 
 ---
 
-## 📥 Installation
+## 💻 Local Setup
 
-### 1. Clone Repository
+### 1. Clone the repo
 ```bash
-git clone https://github.com/yourusername/voting-system.git
-cd voting-system
+git clone https://github.com/trynafind-sumanyu/decentralised-voting-system.git
+cd decentralised-voting-system
 ```
 
-### 2. Setup Blockchain Development
-```bash
-cd blockchain
-npm install
-```
-
-### 3. Setup Backend
-```bash
-cd ../backend
-npm install
-```
-
-### 4. Setup Frontend
-```bash
-cd ../frontend
-# Frontend is static - no installation needed
-# (Optional: if using a local server)
-```
-
----
-
-## ⚙️ Configuration
-
-### Blockchain Setup (.env)
-Create `blockchain/.env` from template:
-```bash
-cd blockchain
-cp .env.example .env
-```
-
-Fill in your values:
-```env
-PRIVATE_KEY=your_wallet_private_key_here
-RPC_URL_AMOY=https://rpc-amoy.polygon.technology
-```
-
-### Backend Setup (.env)
-Create `backend/.env` from template:
+### 2. Install backend dependencies
 ```bash
 cd backend
-cp .env.example .env
+npm install
 ```
 
-Fill in your values:
-```env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/voting_db
-POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
-POLYGON_VOTING_CONTRACT=0x...contract_address_here...
-CORS_ORIGIN=http://localhost:3000
+### 3. Install blockchain dependencies
+```bash
+cd ../blockchain
+npm install
 ```
 
-### Frontend Configuration
-Update `frontend/script.js` line ~5:
-```javascript
-// For local development (already configured):
-const API_BASE = "http://localhost:5000/api";
+### 4. Configure environment variables (see below)
 
-// For production (after deployment):
-const API_BASE = "https://your-backend-url.onrender.com/api";
-```
-
----
-
-## 🚀 Running Locally
-
-### 1. Start Backend Server
+### 5. Start the backend
 ```bash
 cd backend
 npm run dev
-```
-Expected output:
-```
-Server running on port 5000
-MongoDB connected successfully ✅
+# Server running on port 5000
+# MongoDB connected successfully
 ```
 
-### 2. Open Frontend
+### 6. Open the frontend
 ```bash
-# Option A: Open in browser directly
 open frontend/index.html
-
-# Option B: Use a local server (if available)
-cd frontend
-# python -m http.server 3000  (Python)
-# or
-# npx http-server -p 3000     (Node.js)
 ```
 
-Visit: `http://localhost:3000` or wherever your frontend is served
+---
 
-### 3. Test the Application
-1. Register a voter:
-   - Navigate to "Register" → "Voter"
-   - Fill form with test data
-   - Aadhar: 12 digits
-   - DOB: Must be 18+
-   - Email: Valid email format
+## ⚙️ Environment Variables
 
-2. Sign in:
-   - Use the Aadhar number you registered
+### backend/.env
+```env
+PORT=5000
+NODE_ENV=development
 
-3. Register an election (if admin endpoint available):
-   - Navigate to elections
-   - Fill election details
+# MongoDB Atlas
+MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/voting
 
-4. Cast a vote:
-   - Sign in as voter
-   - Select a candidate
-   - Click "Cast Vote"
+# Admin credentials (you choose these)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=YourStrongPassword123
+ADMIN_TOKEN_SECRET=some-long-random-secret-string
+
+# Blockchain
+PRIVATE_KEY=0xyour_wallet_private_key
+NETWORK=amoy
+RPC_URL_AMOY=https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_LOCAL=http://127.0.0.1:8545
+AMOY_CONTRACT_ADDRESS=0xYourDeployedContractAddress
+
+# Cloudinary (from cloudinary.com dashboard)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# CORS - set to your Vercel URL in production
+ALLOWED_ORIGIN=https://your-app.vercel.app
+```
+
+### blockchain/.env
+```env
+PRIVATE_KEY=your_wallet_private_key
+RPC_URL_AMOY=https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY
+```
 
 ---
 
 ## 🚀 Deployment
 
-### Quick Start
-For step-by-step deployment instructions, see:
-- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Overview
-- **[DEPLOYMENT_STEPS.md](DEPLOYMENT_STEPS.md)** - Detailed steps
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Progress tracker
+### Step 1 — Deploy Smart Contract
+```bash
+cd blockchain
+npx hardhat run scripts/deploy.js --network amoy
+# Contract deployed to: 0xABC123...  <- copy this address
+```
 
-### High-Level Overview
+### Step 2 — Deploy Backend to Render
+1. Go to render.com → New Web Service → connect GitHub repo
+2. Set Root Directory to `backend`
+3. Set Build Command to `npm install`
+4. Set Start Command to `npm start`
+5. Add all env vars from backend/.env above
+6. Click Deploy
 
-1. **Smart Contract Deployment**
-   ```bash
-   cd blockchain
-   npx hardhat run scripts/deploy.js --network amoy
-   ```
-   Save the contract address!
+### Step 3 — Deploy Frontend to Vercel
+1. Go to vercel.com → New Project → import GitHub repo
+2. Set Root Directory to `frontend`
+3. Leave build command blank (static site)
+4. Click Deploy
 
-2. **Backend Deployment (Render)**
-   - Push code to GitHub
-   - Create Web Service on Render
-   - Set environment variables
-   - Deploy
-
-3. **Database (MongoDB Atlas)**
-   - Create cluster
-   - Create database user
-   - Whitelist IPs
-   - Get connection string
-
-4. **Frontend Deployment**
-   - Update API_BASE URL
-   - Deploy on Netlify or GitHub Pages
+### Step 4 — Update CORS
+In Render → Environment → set:
+```
+ALLOWED_ORIGIN=https://your-app.vercel.app
+```
+Then redeploy backend.
 
 ---
 
-## 📚 API Documentation
+## 📚 API Reference
 
-### Base URL
-**Local:** `http://localhost:5000/api`
+**Base URL:** `https://voting-system-backend-9xsy.onrender.com/api`
 
-### Endpoints
+### Voters
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /voters | Register a new voter |
+| GET | /voters/lookup?aadharNumber= | Sign in / look up voter |
 
-#### Voters
-```
-POST   /api/voters                    # Register new voter
-GET    /api/voters/lookup?aadharNumber=...   # Get voter by Aadhar
-```
+### Elections
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | /elections | — | List all elections |
+| POST | /elections | Admin | Create election |
+| GET | /elections/:id/results | — | Get vote results |
 
-#### Elections
-```
-GET    /api/elections                 # Get all elections
-POST   /api/elections                 # Create new election
-GET    /api/elections/:id             # Get election details
-```
+### Candidates
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | /candidates?electionId= | — | List approved candidates |
+| POST | /candidates | — | Register candidate (with photo) |
+| GET | /candidates/admin?electionId= | Admin | List all candidates |
+| PATCH | /candidates/:id/approval | Admin | Approve or reject candidate |
 
-#### Candidates
-```
-GET    /api/candidates?electionId=... # Get candidates for election
-POST   /api/candidates                # Register candidate
-```
+### Votes
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /votes | Cast a vote |
 
-#### Votes
-```
-POST   /api/votes                     # Cast a vote
-GET    /api/votes/:id                 # Get vote details
-```
-
-### Request/Response Examples
-
-**Register Voter:**
-```bash
-curl -X POST http://localhost:5000/api/voters \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "aadharNumber": "123456789012",
-    "dateOfBirth": "2000-01-15"
-  }'
-```
-
-**Response:**
-```json
-{
-  "message": "Voter registered successfully",
-  "voter": {
-    "_id": "507f1f77bcf86cd799439011",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "aadharNumber": "123456789012",
-    "age": 24,
-    "hasVoted": false,
-    "createdAt": "2026-04-24T10:30:00Z"
-  }
-}
-```
+### Admin
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /admin/login | Admin login → returns JWT |
+| GET | /admin/session | Verify admin session |
 
 ---
 
 ## ⛓️ Smart Contract
 
-### Voting.sol Functions
+**File:** `blockchain/contracts/Voting.sol`
 
 ```solidity
-// Record a vote on blockchain
-recordVote(address voter, uint256 candidateId, uint256 electionId)
-
-// Get election details
-getElection(uint256 electionId)
-
-// Get candidate details
-getCandidate(uint256 candidateId)
-
-// Check if voter has voted
-hasVoted(address voter, uint256 electionId)
+function addCandidate(string memory _name) public
+function vote(string memory _voterId, uint _candidateId) public
+function getAllCandidates() public view returns (Candidate[] memory)
 ```
 
-### Contract Deployment
-- **Network**: Polygon Amoy
-- **Explorer**: https://amoy.polygonscan.com/
+Votes are tracked by `_voterId` (a scoped string combining MongoDB voter + election IDs) instead of `msg.sender` — this allows multiple voters to use the same backend wallet without triggering the already-voted check.
 
----
-
-## 🧪 Testing
-
-### Local Testing
-1. Start backend: `npm run dev` (in backend folder)
-2. Open frontend in browser
-3. Register test voters
-4. Cast test votes
-5. Verify in MongoDB Atlas and Polygonscan
-
-### Test Data
-```javascript
-// Sample voter data for testing
-{
-  "name": "Test Voter",
-  "email": "test@example.com",
-  "aadharNumber": "123456789012",
-  "dateOfBirth": "2000-01-15"
-}
-
-// Sample election data
-{
-  "title": "Presidential Election 2026",
-  "description": "General elections",
-  "startDate": "2026-05-01",
-  "endDate": "2026-05-31"
-}
-```
-
-### Manual Testing Checklist
-- [ ] Register voter with valid data
-- [ ] Reject voter under 18 years old
-- [ ] Reject duplicate email
-- [ ] Reject duplicate Aadhar
-- [ ] Register invalid Aadhar (not 12 digits)
-- [ ] Sign in with correct Aadhar
-- [ ] Sign in with wrong Aadhar
-- [ ] Cast vote (verify blockchain transaction)
-- [ ] Prevent duplicate votes
-- [ ] Check MongoDB for stored data
-
----
-
-## 🔍 Troubleshooting
-
-### Backend Won't Start
-```bash
-# Check Node version
-node --version  # Should be 18.x or higher
-
-# Check port 5000 is available
-netstat -ano | findstr :5000  # Windows
-lsof -i :5000                 # Mac/Linux
-
-# Check MongoDB connection
-# Verify MONGO_URI in .env is correct
-# Verify IP is whitelisted in MongoDB Atlas
-```
-
-### MongoDB Connection Failed
-- ✅ Check connection string format
-- ✅ Verify username and password
-- ✅ Whitelist your IP in MongoDB Atlas
-- ✅ Ensure network connectivity
-
-### Smart Contract Deployment Fails
-- ✅ Verify you have test MATIC
-- ✅ Check PRIVATE_KEY format (no 0x prefix)
-- ✅ Verify RPC_URL is correct
-- ✅ Check gas fees
-
-### Frontend Can't Reach Backend
-- ✅ Check API_BASE URL is correct
-- ✅ Verify CORS_ORIGIN in backend
-- ✅ Check browser console for errors (F12)
-- ✅ Use browser DevTools to inspect network requests
-
-### Vote Not Recording
-- ✅ Verify contract address matches deployed address
-- ✅ Check Polygon network is Amoy
-- ✅ Monitor backend logs for errors
-- ✅ Check transaction on Polygonscan
+**Network:** Polygon Amoy Testnet
+**Explorer:** https://amoy.polygonscan.com/
 
 ---
 
 ## 🔐 Security
 
-### Important Security Notes
-
-⚠️ **Never commit `.env` files!**
-- Use `.env.example` as template
-- `.env` files are protected by `.gitignore`
-- All secrets should be in environment variables only
-
-⚠️ **Private Keys**
-- Never share your private key
-- Never commit private key to git
-- Regenerate keys after any exposure
-- Use different keys for different environments
-
-⚠️ **Database Security**
-- Use strong passwords (MongoDB)
-- Whitelist specific IPs in production
-- Enable two-factor authentication
-- Regular backups
-
-⚠️ **Smart Contract**
-- Test thoroughly on testnet first
-- Consider code audit before mainnet
-- Keep contract addresses private
-
-### Credentials to Regenerate Before Production
-1. MongoDB password
-2. Private wallet key
-3. API keys (if using)
-4. Infura/RPC keys (if using)
+| Layer | Protection |
+|---|---|
+| Global | express-mongo-sanitize strips $ and . from all requests |
+| Voter registration | Name (unicode letters only), Email (format + normalize), Aadhar (12 digits), DOB (future date rejected, age < 18 rejected) |
+| Candidate registration | Name + party sanitized; ObjectId validated; photo type + size enforced |
+| Election creation | Title + description HTML-escaped and length-capped |
+| Admin routes | JWT Bearer token required |
+| CORS | Only ALLOWED_ORIGIN can call the API |
+| Images | Stored on Cloudinary — Render ephemeral disk never used |
 
 ---
 
-## 🤝 Contributing
+## 🔍 Troubleshooting
 
-### Fork & Clone
-```bash
-git clone https://github.com/yourusername/voting-system.git
-cd voting-system
-git checkout -b feature/your-feature-name
-```
-
-### Make Changes
-```bash
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make your changes
-# Commit
-git add .
-git commit -m "Add amazing feature"
-
-# Push
-git push origin feature/amazing-feature
-```
-
-### Pull Request
-1. Go to GitHub repository
-2. Create Pull Request
-3. Describe your changes
-4. Wait for review
+| Problem | Fix |
+|---|---|
+| MODULE_NOT_FOUND: ../utils/sanitize | Push backend/utils/sanitize.js to GitHub |
+| MODULE_NOT_FOUND: ../middleware/upload | Push backend/middleware/upload.js to GitHub |
+| argument handler must be a function | Wrong file committed as voterController.js — re-push correct file |
+| MongoDB connection failed | Whitelist 0.0.0.0/0 in MongoDB Atlas Network Access |
+| Ballot shows empty | No elections created — log in as admin and create one |
+| Candidates not on ballot | Admin has not approved them — Admin panel → select election → approve |
+| Failed to fetch on admin actions | CORS missing PATCH method — check server.js CORS config |
+| Render cold start (slow) | Free tier sleeps after 15 min — use UptimeRobot to ping every 5 min |
+| Vote receipt shows -- after re-login | Push latest voteController.js which saves candidateName to MongoDB |
+| Git push rejected | Run: git fetch origin && git reset --hard origin/main then re-add files |
 
 ---
 
-## 📄 License
+## 🆚 Competitive Advantages
 
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-## 📞 Support & Contact
-
-### Getting Help
-- 📖 Check [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for deployment issues
-- 🔐 Check [GITHUB_SECURITY_CHECKLIST.md](GITHUB_SECURITY_CHECKLIST.md) for security setup
-- ⚡ Check [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for quick commands
-- 🐛 Check GitHub Issues for common problems
-
-### Useful Resources
-- **Polygon Docs**: https://wiki.polygon.technology/
-- **Hardhat Docs**: https://hardhat.org/
-- **MongoDB Docs**: https://docs.mongodb.com/
-- **Ethers.js Docs**: https://docs.ethers.org/
-- **Express.js Docs**: https://expressjs.com/
-
-### Faucets & Explorers
-- **Amoy Faucet**: https://faucet.polygon.technology/
-- **Amoy Explorer**: https://amoy.polygonscan.com/
-- **MetaMask**: https://metamask.io/
+| Feature | This Project | Voatz | Polys | Open Source |
+|---|---|---|---|---|
+| Blockchain votes | ✅ | ✅ | ❌ | Rarely |
+| Candidate photo | ✅ | ❌ | ❌ | ❌ |
+| Admin approval flow | ✅ | ✅ | ✅ | ❌ |
+| NOTA option | ✅ | ❌ | ❌ | ❌ |
+| Input sanitization | ✅ | Unknown | Unknown | ❌ |
+| Free to deploy | ✅ | ❌ | ❌ | ✅ |
+| Aadhar identity | ✅ | ❌ | ❌ | ❌ |
+| Receipt after re-login | ✅ | ✅ | ✅ | ❌ |
 
 ---
 
-## 🎯 Roadmap
-
-### Current Version (v1.0)
-- ✅ Voter registration with validation
-- ✅ Election management
-- ✅ Voting with blockchain recording
-- ✅ Vote verification
-
-### Future Features
-- 🔄 Admin dashboard
-- 🔄 Real-time vote counting
-- 🔄 Audit logging
-- 🔄 Email notifications
-- 🔄 QR code voter verification
-- 🔄 Multi-language support
-- 🔄 Mobile app
-
----
-
-## 📊 Project Stats
-
-```
-Project Type:        Blockchain Voting System
-Total Files:         43
-Lines of Code:       ~5000+
-Backend Routes:      12 API endpoints
-Smart Contract:      1 main contract (Voting.sol)
-Database Schemas:    4 (Voter, Election, Candidate, Vote)
-Supported Networks:  Polygon Amoy (testnet)
-```
-
----
-
-## 🎉 Quick Start (TL;DR)
-
-```bash
-# 1. Clone and setup
-git clone https://github.com/yourusername/voting-system.git
-cd voting-system
-
-# 2. Setup backend
-cd backend
-npm install
-cp .env.example .env
-# Edit .env with your values
-
-# 3. Start backend
-npm run dev
-
-# 4. Open frontend
-open frontend/index.html
-
-# 5. Register and vote!
-```
-
----
-
-## 📝 Version History
+## 📝 Changelog
 
 | Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2026-04-24 | Initial release - Polygon Amoy testnet |
+|---|---|---|
+| 1.0.0 | Apr 2026 | Initial release — voter/candidate registration, blockchain voting |
+| 1.1.0 | Apr 2026 | Admin portal — election creation, candidate approval workflow |
+| 1.2.0 | Apr 2026 | Candidate photo upload via Cloudinary |
+| 1.3.0 | Apr 2026 | NoSQL injection protection, input sanitization across all endpoints |
+| 1.4.0 | Apr 2026 | Voting receipt persists candidateName across sessions |
+| 1.5.0 | Apr 2026 | Mobile responsive layout, retry buttons, background ballot preload |
 
 ---
 
-**Made with ❤️ for transparent, secure voting**
-
-*Last Updated: April 24, 2026*
+**Made with ❤️ for transparent, secure, and accessible democratic voting.**
