@@ -97,6 +97,13 @@
                   <option value="">Loading elections...</option>
                 </select>
               </label>
+              <label class="field" id="photoField" style="display:none">
+                <span>Candidate Photo (JPG/PNG, max 2MB)</span>
+                <input type="file" id="registerPhoto" accept="image/jpeg,image/png,image/webp">
+                <div id="photoPreview" style="margin-top:8px;display:none">
+                  <img id="photoPreviewImg" src="" alt="Preview" style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:2px solid var(--accent)">
+                </div>
+              </label>
 
               <button type="submit" class="primary-button wide-button register-submit">Submit Registration</button>
             </form>

@@ -991,7 +991,8 @@ showAuthPortal("homeView");
 verifyStoredAdminSession();
 
 // ─── Candidate Photo Preview ──────────────────────────────────────────────────
-document.getElementById("registerPhoto").addEventListener("change", function () {
+const registerPhotoInput = document.getElementById("registerPhoto");
+if (registerPhotoInput) registerPhotoInput.addEventListener("change", function () {
   const file = this.files[0];
   const preview = document.getElementById("photoPreview");
   const previewImg = document.getElementById("photoPreviewImg");
@@ -1014,4 +1015,5 @@ document.getElementById("registerPhoto").addEventListener("change", function () 
     preview.style.display = "block";
   };
   reader.readAsDataURL(file);
-});
+  });
+}
