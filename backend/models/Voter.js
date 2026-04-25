@@ -44,6 +44,10 @@ const voterSchema = new mongoose.Schema({
         type: String,
         required: true,
       },
+      candidateName: {
+        type: String,
+        default: "",   // ✅ stores "Rahul Sharma (Independent)" for receipt display
+      },
       votedAt: {
         type: Date,
         default: Date.now,

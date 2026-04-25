@@ -277,7 +277,8 @@ function renderReceipt() {
     receiptStatus.textContent = "Recorded on blockchain";
   } else if (currentVote?.txHash) {
     receiptId.textContent = currentVote.txHash;
-    receiptCandidate.textContent = currentVote.candidateName || "--";  // ✅ show saved name
+    // ✅ candidateName now comes from MongoDB via voter.votedElections
+    receiptCandidate.textContent = currentVote.candidateName || "--";
     receiptStatus.textContent = "Recorded on blockchain";
   } else {
     receiptId.textContent = "--";
