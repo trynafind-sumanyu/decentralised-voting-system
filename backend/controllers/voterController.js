@@ -1,103 +1,100 @@
-const Vote = require("../models/Vote");
 const Voter = require("../models/Voter");
-const Candidate = require("../models/Candidate");
-const Election = require("../models/Election");
-const getContract = require("../config/blockchain");
-const { getElectionStatus, isElectionOpen } = require("../utils/electionStatus");
-const { buildScopedVoterKey } = require("../utils/voteScope");
+const {
+  sanitizeName,
+  sanitizeEmail,
+  sanitizeAadhar,
+  sanitizeDate,
+} = require("../utils/sanitize");
 
-exports.castVote = async (req, res) => {
+exports.registerVoter = async (req, res) => {
   try {
-    const { voterId, candidateId, electionId } = req.body;
+    const { name, email, aadharNumber, dateOfBirth } = req.body;
 
-    if (!voterId || !candidateId || !electionId) {
-      return res.status(400).json({
-        message: "voterId, candidateId, electionId are required",
-      });
+    if (!name || !email || !aadharNumber || !dateOfBirth) {
+      return res.status(400).json({ message: "Name, email, aadharNumber, and date of birth are required" });
     }
 
-    const voter = await Voter.findById(voterId);
-    if (!voter) {
-      return res.status(404).json({ message: "Voter not found" });
+    const cleanName = sanitizeName(name);
+    if (!cleanName) {
+      return res.status(400).json({ message: "Name contains invalid characters. Only letters, spaces, hyphens, and dots are allowed." });
     }
 
-    const election = await Election.findById(electionId);
-    if (!election) {
-      return res.status(404).json({ message: "Election not found" });
+    const cleanEmail = sanitizeEmail(email);
+    if (!cleanEmail) {
+      return res.status(400).json({ message: "Please enter a valid email address." });
     }
 
-    const currentStatus = getElectionStatus(election.startDate, election.endDate);
-    if (!isElectionOpen(election)) {
-      return res.status(400).json({
-        message: `Voting is not open for this election. Current status: ${currentStatus}`,
-      });
+    const cleanAadhar = sanitizeAadhar(aadharNumber);
+    if (!cleanAadhar) {
+      return res.status(400).json({ message: "Aadhar number must be exactly 12 digits with no letters or symbols." });
     }
 
-    const existingVote = await Vote.findOne({ voterId, electionId });
-    if (existingVote) {
-      return res.status(409).json({ message: "Voter has already voted in this election" });
+    const dob = sanitizeDate(dateOfBirth);
+    if (!dob) {
+      return res.status(400).json({ message: "Invalid date of birth format." });
     }
 
-    const candidate = await Candidate.findById(candidateId);
-    if (!candidate) {
-      return res.status(404).json({ message: "Candidate not found" });
+    const today = new Date();
+    if (dob > today) {
+      return res.status(400).json({ message: "Date of birth cannot be in the future." });
     }
 
-    if (candidate.electionId.toString() !== electionId) {
-      return res.status(400).json({ message: "Candidate does not belong to the selected election" });
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age--;
+
+    if (age < 18) {
+      return res.status(403).json({ message: "Voter must be at least 18 years old to register." });
     }
 
-    const chainCandidateId = Number(candidate.blockchainId);
-    if (!chainCandidateId) {
-      return res.status(400).json({ message: "Candidate not registered on blockchain" });
+    const existingEmail = await Voter.findOne({ email: cleanEmail });
+    if (existingEmail) {
+      return res.status(409).json({ message: "This email address is already registered." });
     }
 
-    const contract = getContract();
-    const scopedVoterKey = buildScopedVoterKey(voterId.toString(), electionId.toString());
-
-    let tx;
-    try {
-      tx = await contract.vote(scopedVoterKey, chainCandidateId);
-      await tx.wait();
-    } catch (blockchainError) {
-      return res.status(500).json({
-        message: "Blockchain vote failed",
-        error: blockchainError.message,
-      });
+    const existingAadhar = await Voter.findOne({ aadharNumber: cleanAadhar });
+    if (existingAadhar) {
+      return res.status(409).json({ message: "This Aadhar number is already registered." });
     }
 
-    const vote = new Vote({
-      voterId,
-      candidateId,
-      electionId,
-      txHash: tx.hash,
+    const voter = new Voter({
+      name: cleanName,
+      email: cleanEmail,
+      aadharNumber: cleanAadhar,
+      dateOfBirth: dob,
+      age,
+      votedElections: [],
     });
-    await vote.save();
 
-    const candidateLabel = candidate.isNOTA
-      ? "None of the Above (NOTA)"
-      : `${candidate.name} (${candidate.party || "Independent"})`;
-
-    voter.votedElections.push({
-      electionId,
-      txHash: tx.hash,
-      candidateName: candidateLabel,  // ✅ persist for receipt display
-      votedAt: new Date(),
-    });
     await voter.save();
+    res.status(201).json({ message: "Voter registered successfully", voter });
 
-    election.status = currentStatus;
-    await election.save();
-
-    res.status(201).json({
-      message: "Vote cast successfully",
-      txHash: tx.hash,
-      vote,
-    });
   } catch (error) {
-    res.status(500).json({
-      message: "Error casting vote",
-      error: error.message,
-    });
+    console.error("Voter registration error:", error);
+    res.status(500).json({ message: "Error registering voter", error: error.message });
+  }
+};
+
+exports.getVoterByAadhar = async (req, res) => {
+  try {
+    const { aadharNumber } = req.query;
+
+    if (!aadharNumber) {
+      return res.status(400).json({ message: "aadharNumber query parameter is required" });
+    }
+
+    const cleanAadhar = sanitizeAadhar(aadharNumber);
+    if (!cleanAadhar) {
+      return res.status(400).json({ message: "Aadhar number must be exactly 12 digits." });
+    }
+
+    const voter = await Voter.findOne({ aadharNumber: cleanAadhar });
+    if (!voter) {
+      return res.status(404).json({ message: "Voter not found with this Aadhar number" });
+    }
+
+    res.status(200).json({ message: "Voter found", voter });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching voter", error: error.message });
   }
 };
