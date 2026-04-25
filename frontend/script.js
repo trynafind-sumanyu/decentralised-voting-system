@@ -992,28 +992,29 @@ verifyStoredAdminSession();
 
 // ─── Candidate Photo Preview ──────────────────────────────────────────────────
 const registerPhotoInput = document.getElementById("registerPhoto");
-if (registerPhotoInput) registerPhotoInput.addEventListener("change", function () {
-  const file = this.files[0];
-  const preview = document.getElementById("photoPreview");
-  const previewImg = document.getElementById("photoPreviewImg");
+if (registerPhotoInput) {
+  registerPhotoInput.addEventListener("change", function () {
+    const file = this.files[0];
+    const preview = document.getElementById("photoPreview");
+    const previewImg = document.getElementById("photoPreviewImg");
 
-  if (!file) {
-    preview.style.display = "none";
-    return;
-  }
+    if (!file) {
+      preview.style.display = "none";
+      return;
+    }
 
-  if (file.size > 2 * 1024 * 1024) {
-    alert("Photo must be under 2MB.");
-    this.value = "";
-    preview.style.display = "none";
-    return;
-  }
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Photo must be under 2MB.");
+      this.value = "";
+      preview.style.display = "none";
+      return;
+    }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    previewImg.src = e.target.result;
-    preview.style.display = "block";
-  };
-  reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
   });
 }
