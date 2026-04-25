@@ -30,8 +30,5 @@ const upload = multer({
     cb(null, true);
   },
 });
-<<<<<<< HEAD:backend/middleware/Upload.js
 
 module.exports = upload;
-=======
->>>>>>> 47d6e0bbde3047adc5bea1fea55b6a67f176baaa:backend/middleware/upload.js
